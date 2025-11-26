@@ -9,8 +9,7 @@ import com.devmre.kmpnavigation.RouteIdProvider
 import org.koin.dsl.module
 
 val navigationModule = module {
-    single<RouteIdProvider> { DefaultRouteIdProvider }
-    single<HandleNavigation> { HandleNavigation(get()) }
+    single<HandleNavigation> { HandleNavigation }
     single<MutableComposeNavigation> { ComposeNavigation(get()) }
     single<Navigation> { get<MutableComposeNavigation>() }
 }

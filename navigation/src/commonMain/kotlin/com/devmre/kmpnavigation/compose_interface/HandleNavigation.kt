@@ -3,6 +3,7 @@ package com.devmre.kmpnavigation.compose_interface
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import co.touchlab.kermit.Logger
+import com.devmre.kmpnavigation.DefaultRouteIdProvider
 import com.devmre.kmpnavigation.NavDestination
 import com.devmre.kmpnavigation.NavOptions
 import com.devmre.kmpnavigation.RouteIdProvider
@@ -18,12 +19,12 @@ import kotlin.reflect.KClass
  *  - the last destination per root graph (to restore tabs)
  *  - a RouteIdProvider strategy
  */
-internal class HandleNavigation(
-    private val routeIdProvider: RouteIdProvider
-) {
+internal object HandleNavigation {
 
     var navController: NavHostController? = null
         private set
+
+    private val routeIdProvider: RouteIdProvider = DefaultRouteIdProvider
 
     /**
      * Remembers, per root graph (tab), the most recently visited destination.
