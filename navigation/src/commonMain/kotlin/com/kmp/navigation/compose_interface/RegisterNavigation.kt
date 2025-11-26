@@ -1,4 +1,4 @@
-package com.devmre.kmpnavigation.compose_interface
+package com.kmp.navigation.compose_interface
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -6,7 +6,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
-import com.devmre.kmpnavigation.NavDestination
+import com.kmp.navigation.NavDestination
 
 /**
  * Sets up a typed `RegisterNavigation` and provides the app navigator to the composition.

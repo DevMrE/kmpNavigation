@@ -8,7 +8,7 @@ plugins {
     id("maven-publish")
 }
 
-group = "com.devmre.navigation"
+group = "com.kmp.navigation"
 version = "0.1.0"
 
 kotlin {
@@ -38,7 +38,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.devmre.navigation"
+    namespace = "com.kmp.navigation"
     compileSdk = 36
     defaultConfig {
         minSdk = 24

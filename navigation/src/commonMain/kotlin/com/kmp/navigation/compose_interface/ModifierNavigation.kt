@@ -1,9 +1,9 @@
-package com.devmre.kmpnavigation.compose_interface
+package com.kmp.navigation.compose_interface
 
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.Modifier
-import com.devmre.kmpnavigation.NavOptions
-import com.devmre.kmpnavigation.NavDestination
+import com.kmp.navigation.NavOptions
+import com.kmp.navigation.NavDestination
 
 /**
  * Navigate up in the navigation stack.

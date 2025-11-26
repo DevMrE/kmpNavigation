@@ -1,4 +1,4 @@
-package com.devmre.kmpnavigation.compose_interface
+package com.kmp.navigation.compose_interface
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect

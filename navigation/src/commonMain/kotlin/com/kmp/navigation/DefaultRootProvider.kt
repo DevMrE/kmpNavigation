@@ -1,4 +1,4 @@
-package com.devmre.kmpnavigation
+package com.kmp.navigation
 
 import androidx.navigation.serialization.generateHashCode
 import kotlinx.serialization.InternalSerializationApi

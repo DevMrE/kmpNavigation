@@ -1,4 +1,4 @@
-package com.devmre.kmpnavigation
+package com.kmp.navigation
 
 /**
  * Options to influence how a navigation action is performed.

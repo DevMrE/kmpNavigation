@@ -1,4 +1,4 @@
-package com.devmre.kmpnavigation
+package com.kmp.navigation
 
 import kotlin.reflect.KClass
 

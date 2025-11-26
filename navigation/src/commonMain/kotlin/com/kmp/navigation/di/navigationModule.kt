@@ -1,11 +1,9 @@
-package com.devmre.kmpnavigation.di
+package com.kmp.navigation.di
 
-import com.devmre.kmpnavigation.compose_interface.ComposeNavigation
-import com.devmre.kmpnavigation.compose_interface.HandleNavigation
-import com.devmre.kmpnavigation.compose_interface.MutableComposeNavigation
-import com.devmre.kmpnavigation.DefaultRouteIdProvider
-import com.devmre.kmpnavigation.Navigation
-import com.devmre.kmpnavigation.RouteIdProvider
+import com.kmp.navigation.compose_interface.ComposeNavigation
+import com.kmp.navigation.compose_interface.HandleNavigation
+import com.kmp.navigation.compose_interface.MutableComposeNavigation
+import com.kmp.navigation.Navigation
 import org.koin.dsl.module
 
 /**
