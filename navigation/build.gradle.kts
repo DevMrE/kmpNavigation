@@ -4,7 +4,12 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.serialization)
+
+    id("maven-publish")
 }
+
+group = "com.devmre.navigation"
+version = "0.1.0"
 
 kotlin {
     compilerOptions {
@@ -37,5 +42,22 @@ android {
     compileSdk = 36
     defaultConfig {
         minSdk = 24
+    }
+}
+
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+
+            url = uri("https://maven.pkg.github.com/DevMrE/kmpNavigation")
+
+            credentials {
+                username = project.findProperty("gpr.user") as String?
+                    ?: System.getenv("GITHUB_ACTOR")
+                password = project.findProperty("gpr.token") as String?
+                    ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
     }
 }

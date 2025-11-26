@@ -2,19 +2,21 @@ package com.devmre.kmpnavigation
 
 import androidx.lifecycle.ViewModel
 import com.devmre.kmpnavigation.di.navigationModule
+import org.koin.dsl.module
 
 /**
- * Application-facing navigation API used by `ViewModel`s.
+ * This interface can be injected into viewModels after the navigationModule
+ * has been added to koin and used for navigation within the viewModel.
  *
  * Characteristics:
- * - Type-safe destinations via `D : NavDestination`.
- * - Requires a `ViewModel` context receiver for each call (see usage below).
- * - Options for singleTop, restoreState, and back stack behavior via `NavOptions`.
+ * - Type-safe destinations via [NavDestination].
+ * - Options for singleTop, restoreState, and back stack behavior via [NavOptions].
+ * - Make sure to add the [navigationModule] into your koinModules [module]
  *
- * Implementation:
- * - The default Compose-backed implementation is provided by `ComposeNavigation`,
- *   which is exposed as `Navigation` through DI (see [navigationModule]`).
- *   Make sure to add the [navigationModule] into your koinModules [module]
+ * Possible calling fun:
+ * - [navigateTo]
+ * - [switchTab] for switching between screen without adding the destination to the stack.
+ * - []
  *
  * Basic usage from a ViewModel:
  * ```kotlin
