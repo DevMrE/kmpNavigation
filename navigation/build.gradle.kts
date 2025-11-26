@@ -48,7 +48,7 @@ android {
 publishing {
     repositories {
         maven {
-            name = "GitHubPackages"
+            name = "KmpNavigationPublisher"
 
             url = uri("https://maven.pkg.github.com/DevMrE/kmpNavigation")
 
