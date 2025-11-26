@@ -1,7 +1,7 @@
-package com.kmp.kmpnavigation.compose_interface
+package com.devmre.kmpnavigation.compose_interface
 
 import androidx.navigation.NavHostController
-import com.kmp.kmpnavigation.util.Navigation
+import com.devmre.kmpnavigation.Navigation
 
 /**
  * Extension of `Navigation` that can be wired to a `NavHostController`.

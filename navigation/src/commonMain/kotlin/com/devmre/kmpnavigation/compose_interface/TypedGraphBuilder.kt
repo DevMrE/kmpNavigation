@@ -1,4 +1,4 @@
-package com.kmp.kmpnavigation.compose_interface
+package com.devmre.kmpnavigation.compose_interface
 
 /**
  * Type‑safe navigation graph builder for Jetpack Compose Navigation (typed routes).
@@ -71,7 +71,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.toRoute
-import com.kmp.kmpnavigation.util.NavDestination
+import com.devmre.kmpnavigation.NavDestination
 
 class TypedGraph internal constructor(
     val install: NavGraphBuilder.() -> Unit

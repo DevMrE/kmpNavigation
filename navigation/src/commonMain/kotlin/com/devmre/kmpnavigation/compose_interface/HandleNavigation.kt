@@ -1,14 +1,11 @@
-package com.kmp.kmpnavigation.compose_interface
+package com.devmre.kmpnavigation.compose_interface
 
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
-import androidx.navigation.serialization.generateHashCode
 import co.touchlab.kermit.Logger
-import com.kmp.kmpnavigation.util.NavDestination
-import com.kmp.kmpnavigation.util.NavOptions
-import com.kmp.kmpnavigation.util.RouteIdProvider
-import kotlinx.serialization.InternalSerializationApi
-import kotlinx.serialization.serializer
+import com.devmre.kmpnavigation.NavDestination
+import com.devmre.kmpnavigation.NavOptions
+import com.devmre.kmpnavigation.RouteIdProvider
 import kotlin.reflect.KClass
 
 /**

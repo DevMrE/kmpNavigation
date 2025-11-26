@@ -1,7 +1,7 @@
-package com.kmp.kmpnavigation.util
+package com.devmre.kmpnavigation
 
 import androidx.lifecycle.ViewModel
-import com.kmp.kmpnavigation.di.navigationModule
+import com.devmre.kmpnavigation.di.navigationModule
 
 /**
  * Application-facing navigation API used by `ViewModel`s.

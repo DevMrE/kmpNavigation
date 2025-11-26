@@ -1,5 +1,3 @@
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
@@ -24,7 +22,6 @@ kotlin {
             implementation(compose.foundation)
             implementation(compose.material3)
             implementation(compose.ui)
-            implementation(compose.components.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
 
@@ -36,7 +33,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.kmp.navigation"
+    namespace = "com.devmre.navigation"
     compileSdk = 36
     defaultConfig {
         minSdk = 24

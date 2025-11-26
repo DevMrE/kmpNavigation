@@ -1,10 +1,9 @@
-package com.kmp.kmpnavigation.compose_interface
+package com.devmre.kmpnavigation.compose_interface
 
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavHostController
-import com.kmp.kmpnavigation.util.NavOptions
-import com.kmp.kmpnavigation.util.NavDestination
-import com.kmp.kmpnavigation.util.RouteIdProvider
+import com.devmre.kmpnavigation.NavOptions
+import com.devmre.kmpnavigation.NavDestination
 
 /**
  * Compose-backed implementation of the `Navigation` API.
