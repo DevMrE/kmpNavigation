@@ -8,18 +8,20 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.LocalNavigator
+import com.kmp.navigation.TypedGraph
+import com.kmp.navigation.install
 
 /**
  * Sets up a typed `RegisterNavigation` and provides the app navigator to the composition.
  *
- * You MUST return a [TypedGraph] from [content] using the typed entry
+ * You MUST return a [com.kmp.navigation.TypedGraph] from [content] using the typed entry
  * point `navGraph { ... }`. Inside that block register destinations with
- * [TypedGraphBuilder.screen] or nested graphs with [TypedGraphBuilder.section].
+ * [com.kmp.navigation.TypedGraphBuilder.screen] or nested graphs with [com.kmp.navigation.TypedGraphBuilder.section].
  *
  * Parameters
  * - `startNavDestination`: initial typed destination instance (your `NavDestination`).
  * - `modifier`: optional modifier passed to `RegisterNavigation`.
- * - `content`: a builder that returns a [TypedGraph] via `navGraph { ... }`.
+ * - `content`: a builder that returns a [com.kmp.navigation.TypedGraph] via `navGraph { ... }`.
  *
  * Usage — single screen
  * ```kotlin

@@ -1,4 +1,4 @@
-package com.kmp.navigation.compose_interface
+package com.kmp.navigation
 
 /**
  * Type‑safe navigation graph builder for Jetpack Compose Navigation (typed routes).
@@ -71,18 +71,55 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.toRoute
-import com.kmp.navigation.NavDestination
 
 class TypedGraph internal constructor(
     val install: NavGraphBuilder.() -> Unit
 )
 
 /**
- * Builder that collects type‑safe installers for Compose Navigation.
+ * Builder that collects type‑safe installers for the Navigation.
  *
  * Use [screen] to add leaf destinations and [section] to add nested graphs. When you
  * are done, wrap everything with [navGraph] and finally call [NavGraphBuilder.install]
  * inside your `NavHost` builder.
+ *
+ * Usage:
+ * ```kotlin
+ * navGraph {
+ *    screen<NavDestination> {
+ *        ComposableContent()
+ *    }
+ *
+ *    section<ParentNavDestination, ChildNavDestination> {
+ *        screen<ChildNavDestination> {
+ *            ComposableContent()
+ *        }
+ *
+ *        screen<OtherChildNavDestination> {
+ *            ComposableContent()
+ *        }
+ *    }
+ * }
+ *
+ * // Or
+ * fun TypedGraphBuilder.homeGraph() {
+ *      screen<NavDestination> {
+ *           ComposableContent()
+ *      }
+ *
+ *      section<ParentNavDestination, ChildNavDestination> {
+ *          screen<ChildNavDestination> {
+ *              ComposableContent()
+ *          }
+ *
+ *          screen<OtherChildNavDestination> {
+ *              ComposableContent()
+ *          }
+ *      }
+ * }
+ *```
+ * @see [TypedGraphBuilder.screen]
+ * @see [TypedGraphBuilder.section]
  */
 class TypedGraphBuilder internal constructor() {
 
