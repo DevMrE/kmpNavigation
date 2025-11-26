@@ -7,6 +7,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.kmp.navigation.NavDestination
+import com.kmp.navigation.LocalNavigator
 
 /**
  * Sets up a typed `RegisterNavigation` and provides the app navigator to the composition.
