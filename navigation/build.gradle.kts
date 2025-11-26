@@ -61,3 +61,5 @@ publishing {
         }
     }
 }
+
+// Use in the terminal: ./gradlew :navigation:publish
