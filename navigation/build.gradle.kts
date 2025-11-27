@@ -10,8 +10,9 @@ plugins {
     id("maven-publish")
 }
 
+// publishing version
 group = "com.kmp.navigation"
-version = "0.2.1"
+version = "0.3.0"
 
 kotlin {
     compilerOptions {
