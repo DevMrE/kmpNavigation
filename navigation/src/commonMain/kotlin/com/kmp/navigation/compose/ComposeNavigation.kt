@@ -1,4 +1,4 @@
-package com.kmp.navigation.compose_interface
+package com.kmp.navigation.compose
 
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavHostController

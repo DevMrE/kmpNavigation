@@ -1,8 +1,8 @@
 package com.kmp.navigation.di
 
-import com.kmp.navigation.compose_interface.ComposeNavigation
-import com.kmp.navigation.compose_interface.HandleNavigation
-import com.kmp.navigation.compose_interface.MutableComposeNavigation
+import com.kmp.navigation.compose.ComposeNavigation
+import com.kmp.navigation.compose.HandleNavigation
+import com.kmp.navigation.compose.MutableComposeNavigation
 import com.kmp.navigation.Navigation
 import org.koin.dsl.module
 
