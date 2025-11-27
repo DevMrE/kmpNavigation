@@ -1,9 +1,8 @@
 package com.kmp.navigation.di
 
-import com.kmp.navigation.compose.ComposeNavigation
-import com.kmp.navigation.compose.HandleNavigation
 import com.kmp.navigation.compose.MutableComposeNavigation
 import com.kmp.navigation.Navigation
+import com.kmp.navigation.compose.NavigationImpl
 import org.koin.dsl.module
 
 /**
@@ -19,7 +18,6 @@ import org.koin.dsl.module
  * @see [Navigation]
  */
 val navigationModule = module {
-    single<HandleNavigation> { HandleNavigation }
-    single<MutableComposeNavigation> { ComposeNavigation() }
+    single<MutableComposeNavigation> { NavigationImpl() }
     single<Navigation> { get<MutableComposeNavigation>() }
 }

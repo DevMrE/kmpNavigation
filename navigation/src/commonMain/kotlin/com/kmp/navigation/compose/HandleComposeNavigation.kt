@@ -19,7 +19,7 @@ import kotlin.reflect.KClass
  *  - the last destination per root graph (to restore tabs)
  *  - a RouteIdProvider strategy
  */
-internal object HandleNavigation {
+internal object HandleComposeNavigation {
 
     var navController: NavHostController? = null
         private set

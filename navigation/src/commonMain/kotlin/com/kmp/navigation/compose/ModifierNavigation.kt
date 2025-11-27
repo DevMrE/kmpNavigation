@@ -10,7 +10,7 @@ import com.kmp.navigation.NavDestination
  */
 fun Modifier.navigateUp(): Modifier = this.then(
     Modifier.clickable {
-        HandleNavigation.navController?.navigateUp()
+        HandleComposeNavigation.navController?.navigateUp()
     }
 )
 
@@ -23,7 +23,7 @@ fun <D : NavDestination> Modifier.navigateTo(
     options: NavOptions.() -> Unit = {}
 ): Modifier = this.then(
     Modifier.clickable {
-        HandleNavigation.handleNavigateTo(navDestination, options)
+        HandleComposeNavigation.handleNavigateTo(navDestination, options)
     }
 )
 
@@ -33,7 +33,7 @@ fun <D : NavDestination> Modifier.navigateTo(
  */
 fun <D : NavDestination> Modifier.switchTab(navDestination: D): Modifier = this.then(
     Modifier.clickable {
-        HandleNavigation.handleSwitchTo(navDestination)
+        HandleComposeNavigation.handleSwitchTo(navDestination)
     }
 )
 
@@ -45,6 +45,6 @@ fun <D : NavDestination> Modifier.popBackTo(
     inclusive: Boolean
 ): Modifier = this.then(
     Modifier.clickable {
-        HandleNavigation.handlePopBackTo(navDestination, inclusive)
+        HandleComposeNavigation.handlePopBackTo(navDestination, inclusive)
     }
 )
