@@ -13,7 +13,7 @@ import com.kmp.navigation.NavDestination
  * - Implements typed navigation calls (`navigateTo`, `switchTab`, `navigateUp`, `popBackTo`).
  * - Automatically remembers the last visited destination per "root tab" (section<G, S>).
  */
-internal class NavigationImpl : MutableComposeNavigation {
+class NavigationImpl : MutableComposeNavigation {
 
     override fun attach(controller: NavHostController) {
         HandleComposeNavigation.attach(controller)
@@ -28,12 +28,12 @@ internal class NavigationImpl : MutableComposeNavigation {
         navDestination: D,
         options: NavOptions.() -> Unit
     ) {
-        handleNavigateTo(navDestination, options)
+        HandleComposeNavigation.handleNavigateTo(navDestination, options)
     }
 
     context(viewModel: ViewModel)
     override fun <D : NavDestination> switchTab(navDestination: D) {
-        handleSwitchTo(navDestination)
+        HandleComposeNavigation.handleSwitchTo(navDestination)
     }
 
     context(viewModel: ViewModel)
@@ -47,16 +47,5 @@ internal class NavigationImpl : MutableComposeNavigation {
         inclusive: Boolean
     ) {
         HandleComposeNavigation.handlePopBackTo(navDestination, inclusive)
-    }
-
-    private fun <D : NavDestination> handleNavigateTo(
-        navDestination: D,
-        options: NavOptions.() -> Unit
-    ) {
-        HandleComposeNavigation.handleNavigateTo(navDestination, options)
-    }
-
-    private fun <D : NavDestination> handleSwitchTo(navDestination: D) {
-        HandleComposeNavigation.handleSwitchTo(navDestination)
     }
 }

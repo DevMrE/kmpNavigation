@@ -14,9 +14,10 @@ import org.koin.dsl.module
  * - Make sure to add the [navigationModule] into your koinModules [module]
  *
  * Possible calling fun:
- * - [navigateTo]
+ * - [navigateTo] for navigating into an another screen
  * - [switchTab] for switching between screen without adding the destination to the stack.
- * - []
+ * - [navigateUp] navigates back
+ * - [popBackTo] jumps back to the defined [NavDestination]
  *
  * Basic usage from a ViewModel:
  * ```kotlin
