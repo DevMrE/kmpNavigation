@@ -12,10 +12,7 @@ import com.kmp.navigation.NavDestination
  * - Triggers recomposition whenever the destination changes via the
  *   navigation API (navigateTo, switchTab, popBackTo, navigateUp).
  *
- * The result can be `null`:
- * - before the first navigation call, or
- * - right after a back operation where the library cannot resolve
- *   a concrete destination (for example a generic `popBackTo(null, inclusive = true)`).
+ * Specify an [initialDestination], as it is possible that no navDestination has been set yet.
  */
 @Composable
 fun rememberNavDestination(initialDestination: NavDestination): NavDestination {
