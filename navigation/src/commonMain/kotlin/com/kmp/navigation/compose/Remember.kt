@@ -12,6 +12,7 @@ import com.kmp.navigation.NavDestination
 import com.kmp.navigation.Navigation
 import com.kmp.navigation.NavigationFactory
 import kotlinx.coroutines.flow.collectLatest
+import org.koin.mp.KoinPlatform.getKoin
 
 /**
  * Picks up the singleton [MutableComposeNavigation] created via [NavigationFactory.create]
@@ -28,22 +29,15 @@ import kotlinx.coroutines.flow.collectLatest
 internal fun rememberMutableComposeNavigation(
     navController: NavHostController
 ): MutableComposeNavigation {
-    val navigation = remember {
-        NavigationFactory.mutableInstance
-            ?: error(
-                "NavigationFactory.create() must be called " +
-                        "(e.g. via DI: single<Navigation> { NavigationFactory.create() }) " +
-                        "before RegisterNavigation is used."
-            )
-    }
+    val navigation = getKoin().get<MutableComposeNavigation>()
 
-    // Attach / detach NavHostController to the navigation implementation
+    // Controller attach/detach
     DisposableEffect(navigation, navController) {
         navigation.attach(navController)
         onDispose { navigation.detach() }
     }
 
-    // Mirror every backstack change (OS back, BackHandler, etc.) into HandleComposeNavigation
+    // Backstack-Ende -> HandleComposeNavigation informieren
     LaunchedEffect(navController) {
         navController.currentBackStackEntryFlow.collectLatest { entry ->
             HandleComposeNavigation.onBackstackDestinationChanged(entry.destination.id)

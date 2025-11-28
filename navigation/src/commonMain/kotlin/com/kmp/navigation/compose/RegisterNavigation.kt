@@ -2,6 +2,7 @@ package com.kmp.navigation.compose
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -83,6 +84,10 @@ fun RegisterNavigation(
     val mutableComposeNavigation = rememberMutableComposeNavigation(
         navController = navController
     )
+
+    LaunchedEffect(startNavDestination) {
+        HandleComposeNavigation.registerStartDestination(startNavDestination)
+    }
 
     CompositionLocalProvider(LocalNavigator provides mutableComposeNavigation) {
         NavHost(
