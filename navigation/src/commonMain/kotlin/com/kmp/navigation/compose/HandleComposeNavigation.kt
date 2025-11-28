@@ -210,16 +210,17 @@ internal object HandleComposeNavigation {
     }
 
     private fun registerDestinationInstance(destination: NavDestination) {
-        val controller = navController ?: return
-
-        val nodeId = idOf(destination)
-        lastDestinationByNodeId[nodeId] = destination
-
-        rootIdForDestinationId(nodeId)?.let { rootId ->
-            lastDestinationByRootId[rootId] = destination
+        val destinationId = idOf(destination)
+        val destination = lastDestinationByNodeId[destinationId]
+        if (destination != null) {
+            _currentDestinationFlow.value = destination
+            rootIdForDestinationId(destinationId)?.let { rootId ->
+                lastDestinationByRootId[rootId] = destination
+            }
+        } else {
+            // Unknown typed destination (e.g. before first registration).
+            _currentDestinationFlow.value = null
         }
-
-        _currentDestinationFlow.value = destination
     }
 
     /**
