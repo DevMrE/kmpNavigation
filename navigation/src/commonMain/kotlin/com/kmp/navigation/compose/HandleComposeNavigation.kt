@@ -1,26 +1,25 @@
 package com.kmp.navigation.compose
 
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import co.touchlab.kermit.Logger
 import com.kmp.navigation.DefaultRouteIdProvider
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.NavOptions
 import com.kmp.navigation.RouteIdProvider
+import kotlin.reflect.KClass
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlin.reflect.KClass
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Central navigation handler used internally by the KMP navigation layer.
+ * Central navigation coordinator used by:
+ *  - Navigation implementation (ViewModel-driven navigation)
+ *  - Modifier-based navigation helpers.
  *
  * Responsibilities:
- * - Hold the current [NavHostController] instance.
- * - Provide `navigateTo`, `switchTo`, `popBackTo`, `navigateUp` semantics.
- * - Remember the last visited destination per root graph (for tab-like behavior).
- * - Expose a Compose-friendly stream of the current [NavDestination].
- * - React to back stack changes driven by the NavController itself
- *   (system back, gestures, `popBackStack`, etc.).
+ *  - Hold the NavHostController reference.
+ *  - Track last visited destination per root graph (sections / tabs).
+ *  - Expose the current typed destination as StateFlow for Compose.
  */
 internal object HandleComposeNavigation {
 
@@ -30,54 +29,41 @@ internal object HandleComposeNavigation {
     private val routeIdProvider: RouteIdProvider = DefaultRouteIdProvider
 
     /**
-     * Per root graph, remembers the last leaf destination navigated to via this handler.
-     *
-     * Key: root navigation graph ID
-     * Value: last [NavDestination] under that root.
+     * Last visited typed destination per root graph (section/tab).
+     * Key: root graph id
+     * Value: last NavDestination under that root.
      */
     private val lastDestinationByRootId = mutableMapOf<Int, NavDestination>()
 
     /**
-     * Current destination as seen by the navigation layer.
-     *
-     * - Updated when we navigate via [handleNavigateTo] or [handleSwitchTo].
-     * - Kept in sync (best-effort) with back stack changes via
-     *   [onBackstackDestinationChanged].
+     * Last typed instance seen for a given nav node id.
+     * This lets us map NavController.destination.id back to a NavDestination.
      */
-    private val _currentDestination = MutableStateFlow<NavDestination?>(null)
+    private val lastDestinationByNodeId = mutableMapOf<Int, NavDestination>()
 
-    val currentDestinationFlow: StateFlow<NavDestination?>
-        get() = _currentDestination
+    private val _currentDestinationFlow = MutableStateFlow<NavDestination?>(null)
+    val currentDestinationFlow: StateFlow<NavDestination?> = _currentDestinationFlow.asStateFlow()
 
     val currentDestinationSnapshot: NavDestination?
-        get() = _currentDestination.value
+        get() = _currentDestinationFlow.value
 
-    /**
-     * Attach a [NavHostController] to this handler.
-     *
-     * Called from the Compose side when the NavHost is created.
-     */
     fun attach(controller: NavHostController) {
         navController = controller
     }
 
-    /**
-     * Detach the current [NavHostController] and clear all cached state.
-     *
-     * Called when the NavHost is disposed.
-     */
     fun detach() {
         navController = null
         lastDestinationByRootId.clear()
-        _currentDestination.value = null
+        lastDestinationByNodeId.clear()
+        _currentDestinationFlow.value = null
     }
 
     /**
-     * Navigate to the given [navDestination].
+     * Navigate to a concrete typed [navDestination].
      *
-     * - Avoids duplicate navigation if the target is already the current destination.
-     * - Applies [NavOptions] (singleTop, restoreState, backstack strategy).
-     * - Updates the "last destination per root graph" cache and current destination.
+     * Applies [NavOptions] and remembers the destination for:
+     *  - its root section
+     *  - [currentDestinationFlow]
      */
     fun <D : NavDestination> handleNavigateTo(
         navDestination: D,
@@ -88,7 +74,7 @@ internal object HandleComposeNavigation {
         val targetId = idOf(navDestination)
         val currentId = controller.currentDestination?.id
 
-        // Avoid re-navigating to the same destination
+        // Avoid pushing the same destination again
         if (currentId == targetId) return
 
         try {
@@ -107,7 +93,7 @@ internal object HandleComposeNavigation {
                     }
 
                     is NavOptions.Backstack.Clear -> {
-                        // Clear back stack up to the graph root (non-inclusive)
+                        // Clear the entire back stack (up to the graph root)
                         controller.graph.id.let { graphId ->
                             popUpTo(graphId) { inclusive = false }
                         }
@@ -117,13 +103,7 @@ internal object HandleComposeNavigation {
                 }
             }
 
-            // Track last destination for its root graph (tab / section behavior)
-            rootIdForDestinationId(targetId)?.let { rootId ->
-                lastDestinationByRootId[rootId] = navDestination
-            }
-
-            // Update current destination with the typed instance
-            _currentDestination.value = navDestination
+            registerDestinationInstance(navDestination)
 
         } catch (e: IllegalArgumentException) {
             e.message?.let {
@@ -133,13 +113,14 @@ internal object HandleComposeNavigation {
     }
 
     /**
-     * Switch to a "tab-like" destination.
+     * Switch to another "tab" / section destination.
      *
-     * Semantics:
-     * - If there is a remembered destination for the same root graph, we restore that.
-     * - Otherwise we navigate directly to [navDestination].
-     * - Uses `launchSingleTop` and `restoreState` and pops up to the graph's start
-     *   (with `saveState = true`) to get standard multi-backstack behavior.
+     * Behaviour:
+     *  - If there is a remembered last destination for that root graph, it navigates
+     *    to that child instead of the parent.
+     *  - If the effective destination is already current, nothing happens.
+     *  - NO popUpTo(findStartDestination()) here, so we do not reset the child
+     *    to the initial screen when switching tabs or going back.
      */
     fun <D : NavDestination> handleSwitchTo(navDestination: D) {
         val controller = navController ?: return
@@ -147,9 +128,6 @@ internal object HandleComposeNavigation {
         val rootTypeId = idOf(navDestination)
         val rootId = rootIdForDestinationId(rootTypeId)
 
-        // Decide which destination should actually be used for this root:
-        //  - If we have a previously stored leaf for this root, use it.
-        //  - Otherwise fall back to the passed navDestination.
         val effectiveDestination: NavDestination = if (rootId != null) {
             lastDestinationByRootId[rootId] ?: navDestination
         } else {
@@ -159,27 +137,18 @@ internal object HandleComposeNavigation {
         val targetId = idOf(effectiveDestination)
         val currentId = controller.currentDestination?.id
 
-        // Avoid re-navigating to the same destination
+        // Section already points to the same effective destination -> no-op
         if (currentId == targetId) return
 
         try {
             controller.navigate(effectiveDestination) {
                 launchSingleTop = true
                 restoreState = true
-
-                // Standard bottom-nav pattern: keep separate backstacks per root graph
-                popUpTo(controller.graph.findStartDestination().id) {
-                    saveState = true
-                }
+                // Intentionally no global popUpTo here:
+                // we want to preserve the per-section backstack.
             }
 
-            // Update "last destination for this root" after switching.
-            rootIdForDestinationId(targetId)?.let { resolvedRootId ->
-                lastDestinationByRootId[resolvedRootId] = effectiveDestination
-            }
-
-            // Current destination is now the effective one
-            _currentDestination.value = effectiveDestination
+            registerDestinationInstance(effectiveDestination)
 
         } catch (e: Exception) {
             e.message?.let {
@@ -189,13 +158,11 @@ internal object HandleComposeNavigation {
     }
 
     /**
-     * Pop the back stack to [navDestination] or just one level if it's null.
+     * Pop the back stack to [navDestination] (inclusive or not).
+     * If [navDestination] is null, pops one entry.
      *
-     * Used by higher-level `popBackTo` APIs and by system back handling glue.
-     *
-     * The actual current destination will be updated via
-     * [onBackstackDestinationChanged] through the NavController's
-     * [androidx.navigation.NavController.currentBackStackEntryFlow].
+     * Current destination is updated via [onBackstackDestinationChanged],
+     * which listens to NavController's back stack.
      */
     fun <D : NavDestination> handlePopBackTo(
         navDestination: D?,
@@ -212,9 +179,9 @@ internal object HandleComposeNavigation {
     }
 
     /**
-     * Navigate "up" in the back stack, delegating to the NavController.
+     * Navigate "up" in the back stack.
      *
-     * As with [handlePopBackTo], the current destination is synchronized via
+     * Again, [currentDestinationFlow] is kept in sync via
      * [onBackstackDestinationChanged].
      */
     fun navigateUp() {
@@ -222,52 +189,42 @@ internal object HandleComposeNavigation {
     }
 
     /**
-     * Keep our internal state in sync with the actual NavController back stack
-     * when it changes from outside this handler:
+     * Called from Compose whenever the NavController back stack changes.
      *
-     * - system back button
-     * - back gestures
-     * - direct `navController.popBackStack()` calls
-     *
-     * Because we only get a destination ID (no typed [NavDestination] instance),
-     * we cannot reconstruct a full typed destination with arguments in the general case.
-     *
-     * Strategy:
-     * - If the ID matches the current typed destination, keep it as is.
-     * - Otherwise:
-     *   - Resolve the root graph for [destinationId].
-     *   - If our cached destination for that root has the same ID, reuse it.
-     *   - If not, clear the cache for that root and set the current destination to `null`.
+     * We map [destinationId] to the last known typed destination instance and
+     * update:
+     *  - [currentDestinationFlow] (for rememberNavDestination)
+     *  - [lastDestinationByRootId] (for switchTab behaviour)
      */
-    fun onBackstackDestinationChanged(destinationId: Int) {
-        val current = _currentDestination.value
-        if (current != null && idOf(current) == destinationId) {
-            // Already in sync
-            return
+    internal fun onBackstackDestinationChanged(destinationId: Int) {
+        val destination = lastDestinationByNodeId[destinationId]
+        if (destination != null) {
+            _currentDestinationFlow.value = destination
+            rootIdForDestinationId(destinationId)?.let { rootId ->
+                lastDestinationByRootId[rootId] = destination
+            }
+        } else {
+            // Unknown typed destination (e.g. before first registration).
+            _currentDestinationFlow.value = null
+        }
+    }
+
+    private fun registerDestinationInstance(destination: NavDestination) {
+        val controller = navController ?: return
+
+        val nodeId = idOf(destination)
+        lastDestinationByNodeId[nodeId] = destination
+
+        rootIdForDestinationId(nodeId)?.let { rootId ->
+            lastDestinationByRootId[rootId] = destination
         }
 
-        val rootId = rootIdForDestinationId(destinationId)
-        if (rootId == null) {
-            _currentDestination.value = null
-            return
-        }
-
-        val existing = lastDestinationByRootId[rootId]
-        if (existing != null && idOf(existing) == destinationId) {
-            _currentDestination.value = existing
-            return
-        }
-
-        // We no longer have a reliable typed instance for this ID.
-        lastDestinationByRootId.remove(rootId)
-        _currentDestination.value = null
+        _currentDestinationFlow.value = destination
     }
 
     /**
-     * Resolve the "root graph id" for a given destination ID.
-     *
-     * A root graph is the direct child of the NavController's graph. We walk
-     * up the parent chain until we reach that direct child.
+     * Returns the ID of the root graph that contains [targetId].
+     * Used for section/tab behaviour.
      */
     private fun rootIdForDestinationId(targetId: Int): Int? {
         val controller = navController ?: return null
@@ -276,7 +233,7 @@ internal object HandleComposeNavigation {
 
         val parent = node.parent ?: return node.id
 
-        // Direct child of the root graph?
+        // Direct child of the root?
         if (parent.id == rootGraph.id) {
             return node.id
         }

@@ -22,29 +22,22 @@ internal fun rememberMutableComposeNavigation(
 ): MutableComposeNavigation {
     val navigation = remember {
         NavigationFactory.mutableInstance
-            ?: error("NavigationFactory.create() must be called before RegisterNavigation()")
+            ?: error(
+                "NavigationFactory.create() must be called " +
+                        "(e.g. via DI: single<Navigation> { NavigationFactory.create() }) " +
+                        "before RegisterNavigation is used."
+            )
     }
 
-    // Keep navController attached to our internal handler for the lifetime
-    // of this NavHost.
+    // Attach/detach the NavController to the navigation implementation
     DisposableEffect(navigation, navController) {
-        HandleComposeNavigation.attach(navController)
         navigation.attach(navController)
-
-        onDispose {
-            navigation.detach()
-            HandleComposeNavigation.detach()
-        }
+        onDispose { navigation.detach() }
     }
 
-    // Mirror NavController backstack changes into HandleComposeNavigation
+    // Mirror NavController back stack changes into HandleComposeNavigation so that
+    // rememberNavDestination also reacts to OS back gestures and navigateUp/popBackStack.
     LaunchedEffect(navController) {
-        // Initial destination (if available)
-        navController.currentBackStackEntry?.destination?.id?.let { id ->
-            HandleComposeNavigation.onBackstackDestinationChanged(id)
-        }
-
-        // All subsequent changes (system back, gestures, popBackStack, ...)
         navController.currentBackStackEntryFlow.collectLatest { entry ->
             HandleComposeNavigation.onBackstackDestinationChanged(entry.destination.id)
         }
