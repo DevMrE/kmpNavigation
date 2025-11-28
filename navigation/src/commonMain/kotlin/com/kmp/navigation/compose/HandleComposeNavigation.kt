@@ -1,6 +1,5 @@
 package com.kmp.navigation.compose
 
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import co.touchlab.kermit.Logger
 import com.kmp.navigation.DefaultRouteIdProvider
@@ -112,9 +111,9 @@ internal object HandleComposeNavigation {
                 launchSingleTop = true
                 restoreState = true
 
-                popUpTo(controller.graph.findStartDestination().id) {
-                    saveState = true
-                }
+//                popUpTo(controller.graph.findStartDestination().id) {
+//                    saveState = true
+//                }
             }
 
             rootIdForDestinationId(targetId)?.let { resolvedRootId ->
