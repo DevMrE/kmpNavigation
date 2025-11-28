@@ -18,9 +18,9 @@ import com.kmp.navigation.NavDestination
  *   a concrete destination (for example a generic `popBackTo(null, inclusive = true)`).
  */
 @Composable
-fun rememberNavDestination(initialDestination: NavDestination): NavDestination? {
-    val flow = HandleComposeNavigation.currentDestinationFlow
-    val current by flow.collectAsState()
+fun rememberNavDestination(initialDestination: NavDestination): NavDestination {
+    val current by HandleComposeNavigation.currentDestinationFlow.collectAsState(
+        initial = HandleComposeNavigation.currentDestinationSnapshot
+    )
     return current ?: initialDestination
 }
-

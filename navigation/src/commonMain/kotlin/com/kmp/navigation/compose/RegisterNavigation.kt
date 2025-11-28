@@ -9,8 +9,8 @@ import androidx.navigation.compose.rememberNavController
 import com.kmp.navigation.LocalNavigator
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.TypedGraph
-import com.kmp.navigation.install
 import com.kmp.navigation.TypedGraphBuilder
+import com.kmp.navigation.install
 
 /**
  * Sets up a typed `RegisterNavigation` and provides the app navigator to the composition.
@@ -78,8 +78,10 @@ fun RegisterNavigation(
     content: NavGraphBuilder.() -> TypedGraph
 ) {
     val navController = rememberNavController()
-
-    val mutableComposeNavigation = rememberMutableComposeNavigation(navController)
+    val mutableComposeNavigation = rememberMutableComposeNavigation(
+        navController = navController,
+        startDestination = startNavDestination
+    )
 
     CompositionLocalProvider(LocalNavigator provides mutableComposeNavigation) {
         NavHost(
