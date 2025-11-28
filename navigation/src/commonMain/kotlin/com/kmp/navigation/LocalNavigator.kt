@@ -1,5 +1,6 @@
 package com.kmp.navigation
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 
 /**
@@ -17,8 +18,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
  * }
  * ```
  */
-internal fun localNavigator() = staticCompositionLocalOf<Navigation> {
+internal val LocalNavigator = staticCompositionLocalOf<Navigation> {
     error("Navigator not provided")
 }
 
-fun rememberNavigation() = localNavigator()
+@Composable
+fun rememberNavigation(): Navigation = LocalNavigator.current
