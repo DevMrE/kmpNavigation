@@ -48,3 +48,7 @@ fun <D : NavDestination> Modifier.popBackTo(
         HandleComposeNavigation.handlePopBackTo(navDestination, inclusive)
     }
 )
+
+fun (() -> Unit).switchTab(navDestination: NavDestination) {
+    HandleComposeNavigation.handleSwitchTo(navDestination)
+}
