@@ -6,6 +6,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.navigation.NavHostController
 import com.kmp.navigation.NavDestination
+import com.kmp.navigation.Navigation
+import com.kmp.navigation.NavigationFactory
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.mp.KoinPlatform.getKoin
 
@@ -14,25 +16,27 @@ internal fun rememberMutableComposeNavigation(
     navController: NavHostController,
     startDestination: NavDestination
 ): MutableComposeNavigation {
-    val navigation = remember { getKoin().get<MutableComposeNavigation>() }
-
-    // Initial destination into our HandleComposeNavigation state
-    LaunchedEffect(startDestination) {
-        HandleComposeNavigation.onBackstackDestinationChanged(startDestination)
-    }
-
-    // Mirror every NavController backstack change into HandleComposeNavigation
-    LaunchedEffect(navController) {
-        navController.currentBackStackEntryFlow.collectLatest { entry ->
-            HandleComposeNavigation.onBackstackDestinationChanged(entry.destination.id)
-        }
+    val navigation = remember {
+        NavigationFactory.mutableInstance
+            ?: error(
+                "NavigationFactory.mutableInstance is null. " +
+                        "Make sure you provide Navigation via DI, e.g.: " +
+                        "single<Navigation> { NavigationFactory.create() }"
+            )
     }
 
     DisposableEffect(navigation, navController) {
         navigation.attach(navController)
-        onDispose {
-            navigation.detach()
-            HandleComposeNavigation.onBackstackDestinationChanged(null as NavDestination?)
+        onDispose { navigation.detach() }
+    }
+
+    LaunchedEffect(startDestination) {
+        HandleComposeNavigation.onBackstackDestinationChanged(startDestination)
+    }
+
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntryFlow.collectLatest { entry ->
+            HandleComposeNavigation.onBackstackDestinationChanged(entry.destination.id)
         }
     }
 
