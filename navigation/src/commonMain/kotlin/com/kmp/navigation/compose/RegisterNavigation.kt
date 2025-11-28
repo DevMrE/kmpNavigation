@@ -6,18 +6,18 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
-import com.kmp.navigation.InstallNavigationBackHandler
 import com.kmp.navigation.LocalNavigator
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.TypedGraph
 import com.kmp.navigation.install
+import com.kmp.navigation.TypedGraphBuilder
 
 /**
  * Sets up a typed `RegisterNavigation` and provides the app navigator to the composition.
  *
- * You MUST return a [com.kmp.navigation.TypedGraph] from [content] using the typed entry
+ * You MUST return a [TypedGraph] from [content] using the typed entry
  * point `navGraph { ... }`. Inside that block register destinations with
- * [com.kmp.navigation.TypedGraphBuilder.screen] or nested graphs with [com.kmp.navigation.TypedGraphBuilder.section].
+ * [TypedGraphBuilder.screen] or nested graphs with [TypedGraphBuilder.section].
  *
  * Parameters
  * - `startNavDestination`: initial typed destination instance (your `NavDestination`).
@@ -70,10 +70,6 @@ import com.kmp.navigation.install
  *     }
  * }
  * ```
- *
- * Internals
- * - Creates a `NavHostController` and wires it to `MutableComposeNavigation`.
- * - Provides the navigator via [localNavigator] for child composables to use.
  */
 @Composable
 fun RegisterNavigation(
@@ -82,16 +78,12 @@ fun RegisterNavigation(
     content: NavGraphBuilder.() -> TypedGraph
 ) {
     val navController = rememberNavController()
-    val mutableComposeNavigation = rememberMutableComposeNavigation(navController)
 
-    val backAwareModifier = InstallNavigationBackHandler(
-        navigation = mutableComposeNavigation,
-        modifier = modifier
-    )
+    val mutableComposeNavigation = rememberMutableComposeNavigation(navController)
 
     CompositionLocalProvider(LocalNavigator provides mutableComposeNavigation) {
         NavHost(
-            modifier = backAwareModifier,
+            modifier = modifier,
             navController = navController,
             startDestination = startNavDestination
         ) {
