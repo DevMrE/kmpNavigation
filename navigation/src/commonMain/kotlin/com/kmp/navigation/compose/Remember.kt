@@ -6,13 +6,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import com.kmp.navigation.LocalNavigator
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.Navigation
 import com.kmp.navigation.NavigationFactory
 import kotlinx.coroutines.flow.collectLatest
-import org.koin.mp.KoinPlatform.getKoin
 
 /**
  * Picks up the singleton [MutableComposeNavigation] created via [NavigationFactory.create]
@@ -27,24 +27,24 @@ import org.koin.mp.KoinPlatform.getKoin
  */
 @Composable
 internal fun rememberMutableComposeNavigation(
-    navController: NavHostController
+    navController: NavHostController,
+    startDestination: NavDestination
 ): MutableComposeNavigation {
-    val navigation = remember {
-        NavigationFactory.mutableInstance
-            ?: error(
-                "Navigation instance not found. " +
-                        "Make sure you create it via NavigationFactory.create() " +
-                        "in your DI module, e.g.: single<Navigation> { NavigationFactory.create() }"
-            )
-    }
+    // Always use the single global instance from NavigationFactory.
+    val navigation = remember { NavigationFactory.mutableInstance }
 
-    // Controller attach/detach
     DisposableEffect(navigation, navController) {
         navigation.attach(navController)
         onDispose { navigation.detach() }
     }
 
-    // Backstack-Ende -> HandleComposeNavigation informieren
+    // Register the initial root tab once the graph is available.
+    LaunchedEffect(navController, startDestination) {
+        val startId = navController.graph.findStartDestination().id
+        HandleComposeNavigation.registerRootGraph(startId, startDestination)
+    }
+
+    // Keep root-destination state in sync with the NavController back stack.
     LaunchedEffect(navController) {
         navController.currentBackStackEntryFlow.collectLatest { entry ->
             HandleComposeNavigation.onBackstackDestinationChanged(entry.destination.id)

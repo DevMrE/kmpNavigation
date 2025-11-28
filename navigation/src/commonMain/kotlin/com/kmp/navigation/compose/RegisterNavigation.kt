@@ -2,16 +2,15 @@ package com.kmp.navigation.compose
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.kmp.navigation.LocalNavigator
 import com.kmp.navigation.NavDestination
-import com.kmp.navigation.TypedGraphBuilder
+import com.kmp.navigation.NavigationFactory
 import com.kmp.navigation.TypedGraph
+import com.kmp.navigation.TypedGraphBuilder
 import com.kmp.navigation.install
 
 /**
@@ -79,17 +78,15 @@ fun RegisterNavigation(
     modifier: Modifier = Modifier,
     content: NavGraphBuilder.() -> TypedGraph
 ) {
-    val navController: NavHostController = rememberNavController()
+    val navController = rememberNavController()
 
-    val mutableComposeNavigation = rememberMutableComposeNavigation(
-        navController = navController
+    // Attach NavHostController and start tracking the root destination.
+    rememberMutableComposeNavigation(
+        navController = navController,
+        startDestination = startNavDestination
     )
 
-    LaunchedEffect(startNavDestination) {
-        HandleComposeNavigation.registerStartDestination(startNavDestination)
-    }
-
-    CompositionLocalProvider(LocalNavigator provides mutableComposeNavigation) {
+    CompositionLocalProvider(LocalNavigator provides NavigationFactory.create()) {
         NavHost(
             modifier = modifier,
             navController = navController,
