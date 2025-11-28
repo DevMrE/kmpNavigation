@@ -31,20 +31,19 @@ internal fun rememberMutableComposeNavigation(
     val navigation = remember {
         NavigationFactory.mutableInstance
             ?: error(
-                "NavigationFactory.create() must be called in your DI setup " +
-                        "before using RegisterNavigation."
+                "NavigationFactory.create() must be called " +
+                        "(e.g. via DI: single<Navigation> { NavigationFactory.create() }) " +
+                        "before RegisterNavigation is used."
             )
     }
 
-    // Attach / detach controller lifetime
+    // Attach / detach NavHostController to the navigation implementation
     DisposableEffect(navigation, navController) {
         navigation.attach(navController)
-        onDispose {
-            navigation.detach()
-        }
+        onDispose { navigation.detach() }
     }
 
-    // Mirror NavController backstack changes into our typed state
+    // Mirror every backstack change (OS back, BackHandler, etc.) into HandleComposeNavigation
     LaunchedEffect(navController) {
         navController.currentBackStackEntryFlow.collectLatest { entry ->
             HandleComposeNavigation.onBackstackDestinationChanged(entry.destination.id)

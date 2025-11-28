@@ -10,7 +10,7 @@ import com.kmp.navigation.NavDestination
  */
 fun Modifier.navigateUp(): Modifier = this.then(
     Modifier.clickable {
-        HandleComposeNavigation.navController?.navigateUp()
+        HandleComposeNavigation.navigateUp()
     }
 )
 
