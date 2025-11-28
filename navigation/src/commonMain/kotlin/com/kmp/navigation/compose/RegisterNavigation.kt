@@ -10,7 +10,6 @@ import androidx.navigation.compose.rememberNavController
 import com.kmp.navigation.LocalNavigator
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.TypedGraph
-import com.kmp.navigation.TypedGraphBuilder
 import com.kmp.navigation.install
 
 /**
@@ -23,7 +22,7 @@ import com.kmp.navigation.install
  * Parameters
  * - `startNavDestination`: initial typed destination instance (your `NavDestination`).
  * - `modifier`: optional modifier passed to `RegisterNavigation`.
- * - `content`: a builder that returns a [com.kmp.navigation.TypedGraph] via `navGraph { ... }`.
+ * - `content`: a builder that returns a [TypedGraph] via `navGraph { ... }`.
  *
  * Usage — single screen
  * ```kotlin
