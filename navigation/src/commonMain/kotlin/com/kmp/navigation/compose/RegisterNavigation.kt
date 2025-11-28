@@ -80,8 +80,7 @@ fun RegisterNavigation(
     val navController: NavHostController = rememberNavController()
 
     val mutableComposeNavigation = rememberMutableComposeNavigation(
-        navController = navController,
-        startDestination = startNavDestination
+        navController = navController
     )
 
     CompositionLocalProvider(LocalNavigator provides mutableComposeNavigation) {

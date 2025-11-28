@@ -20,8 +20,6 @@ import kotlinx.coroutines.flow.collectLatest
 internal fun rememberMutableComposeNavigation(
     navController: NavHostController
 ): MutableComposeNavigation {
-    // NavigationFactory.create() must have been called earlier (via DI),
-    // so that [mutableInstance] is set.
     val navigation = remember {
         NavigationFactory.mutableInstance
             ?: error("NavigationFactory.create() must be called before RegisterNavigation()")
