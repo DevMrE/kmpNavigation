@@ -17,6 +17,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
  * }
  * ```
  */
-internal val LocalNavigator = staticCompositionLocalOf<Navigation> {
+internal fun localNavigator() = staticCompositionLocalOf<Navigation> {
     error("Navigator not provided")
 }
+
+fun rememberNavigation() = localNavigator()

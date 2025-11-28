@@ -7,7 +7,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.kmp.navigation.NavDestination
-import com.kmp.navigation.LocalNavigator
+import com.kmp.navigation.localNavigator
 import com.kmp.navigation.TypedGraph
 import com.kmp.navigation.install
 
@@ -72,7 +72,7 @@ import com.kmp.navigation.install
  *
  * Internals
  * - Creates a `NavHostController` and wires it to `MutableComposeNavigation`.
- * - Provides the navigator via [LocalNavigator] for child composables to use.
+ * - Provides the navigator via [localNavigator] for child composables to use.
  */
 @Composable
 fun RegisterNavigation(
@@ -83,7 +83,7 @@ fun RegisterNavigation(
     val navController = rememberNavController()
     val mutableComposeNavigation = rememberMutableComposeNavigation(navController)
 
-    CompositionLocalProvider(LocalNavigator provides mutableComposeNavigation) {
+    CompositionLocalProvider(localNavigator() provides mutableComposeNavigation) {
         NavHost(
             modifier = modifier,
             navController = navController,

@@ -41,7 +41,6 @@ interface Navigation {
      * Switch to a different tab destination.
      * Implemented to be singleTop + restoreState.
      */
-    context(viewModel: ViewModel)
     fun <D : NavDestination> switchTab(navDestination: D)
 
     /**

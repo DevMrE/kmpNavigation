@@ -31,7 +31,6 @@ class NavigationImpl : MutableComposeNavigation {
         HandleComposeNavigation.handleNavigateTo(navDestination, options)
     }
 
-    context(viewModel: ViewModel)
     override fun <D : NavDestination> switchTab(navDestination: D) {
         HandleComposeNavigation.handleSwitchTo(navDestination)
     }
