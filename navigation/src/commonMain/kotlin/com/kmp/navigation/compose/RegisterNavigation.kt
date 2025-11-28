@@ -6,6 +6,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
+import com.kmp.navigation.InstallNavigationBackHandler
 import com.kmp.navigation.LocalNavigator
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.TypedGraph
@@ -83,9 +84,14 @@ fun RegisterNavigation(
     val navController = rememberNavController()
     val mutableComposeNavigation = rememberMutableComposeNavigation(navController)
 
+    val backAwareModifier = InstallNavigationBackHandler(
+        navigation = mutableComposeNavigation,
+        modifier = modifier
+    )
+
     CompositionLocalProvider(LocalNavigator provides mutableComposeNavigation) {
         NavHost(
-            modifier = modifier,
+            modifier = backAwareModifier,
             navController = navController,
             startDestination = startNavDestination
         ) {

@@ -34,7 +34,6 @@ interface Navigation {
      * Navigate to the given destination. Configure behavior via [options].
      * @param navDestination The [NavDestination] to navigate
      */
-    context(viewModel: ViewModel)
     fun <D : NavDestination> navigateTo(navDestination: D, options: NavOptions.() -> Unit = {})
 
     /**
@@ -46,14 +45,12 @@ interface Navigation {
     /**
      * Navigate up in the navigation stack.
      */
-    context(viewModel: ViewModel)
     fun navigateUp()
 
     /**
      * Pop the back stack to [navDestination] (inclusive or not).
      * If [navDestination] is null, pops one.
      */
-    context(viewModel: ViewModel)
     fun <D : NavDestination> popBackTo(
         navDestination: D? = null,
         inclusive: Boolean = false

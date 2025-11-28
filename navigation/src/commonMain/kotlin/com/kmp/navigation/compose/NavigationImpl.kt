@@ -1,6 +1,5 @@
 package com.kmp.navigation.compose
 
-import androidx.lifecycle.ViewModel
 import androidx.navigation.NavHostController
 import com.kmp.navigation.NavOptions
 import com.kmp.navigation.NavDestination
@@ -23,7 +22,6 @@ class NavigationImpl : MutableComposeNavigation {
         HandleComposeNavigation.detach()
     }
 
-    context(viewModel: ViewModel)
     override fun <D : NavDestination> navigateTo(
         navDestination: D,
         options: NavOptions.() -> Unit
@@ -35,12 +33,10 @@ class NavigationImpl : MutableComposeNavigation {
         HandleComposeNavigation.handleSwitchTo(navDestination)
     }
 
-    context(viewModel: ViewModel)
     override fun navigateUp() {
         HandleComposeNavigation.navigateUp()
     }
 
-    context(viewModel: ViewModel)
     override fun <D : NavDestination> popBackTo(
         navDestination: D?,
         inclusive: Boolean
