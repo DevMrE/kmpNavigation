@@ -125,21 +125,14 @@ internal object HandleComposeNavigation {
     fun <D : NavDestination> handleSwitchTo(navDestination: D) {
         val controller = navController ?: return
 
-        val rootTypeId = idOf(navDestination)
-        val rootId = rootIdForDestinationId(rootTypeId)
+        val currentDestId = controller.currentDestination?.id ?: return
+        val currentRootId = rootIdForDestinationId(currentDestId)
+        val targetRootId = rootIdForDestinationId(idOf(navDestination))
 
-        val effectiveDestination: NavDestination = if (rootId != null) {
-            lastDestinationByRootId[rootId] ?: navDestination
-        } else {
-            navDestination
-        }
-
-        val targetId = idOf(effectiveDestination)
-        val currentId = controller.currentDestination?.id
-        if (currentId == targetId) return
+        if (currentRootId != null && currentRootId == targetRootId) return
 
         try {
-            controller.navigate(effectiveDestination) {
+            controller.navigate(navDestination) {
                 launchSingleTop = true
                 restoreState = true
 
@@ -147,9 +140,6 @@ internal object HandleComposeNavigation {
                     saveState = true
                 }
             }
-
-            trackDestination(effectiveDestination)
-
         } catch (e: Exception) {
             e.message?.let {
                 Logger.e(tag = "Navigation", messageString = it, throwable = e)
