@@ -29,7 +29,14 @@ import org.koin.mp.KoinPlatform.getKoin
 internal fun rememberMutableComposeNavigation(
     navController: NavHostController
 ): MutableComposeNavigation {
-    val navigation = getKoin().get<MutableComposeNavigation>()
+    val navigation = remember {
+        NavigationFactory.mutableInstance
+            ?: error(
+                "Navigation instance not found. " +
+                        "Make sure you create it via NavigationFactory.create() " +
+                        "in your DI module, e.g.: single<Navigation> { NavigationFactory.create() }"
+            )
+    }
 
     // Controller attach/detach
     DisposableEffect(navigation, navController) {
