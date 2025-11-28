@@ -9,6 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.kmp.navigation.LocalNavigator
 import com.kmp.navigation.NavDestination
+import com.kmp.navigation.TypedGraphBuilder
 import com.kmp.navigation.TypedGraph
 import com.kmp.navigation.install
 
