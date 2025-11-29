@@ -5,51 +5,57 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.toRoute
-import com.kmp.navigation.compose.HandleComposeNavigation
-import kotlin.reflect.KClass
 
 /**
- * Type-safe navigation graph builder for Jetpack Compose Navigation (typed routes).
- *
- * You declare your graph using your own [NavDestination] types and this DSL wires
- * them to Navigation-Compose under the hood.
+ * Wrapper around a set of installers that can be applied to a NavGraphBuilder.
  */
-class TypedGraph internal constructor(
-     val installBlock: NavGraphBuilder.() -> Unit
+class TypedGraph(
+    val install: NavGraphBuilder.() -> Unit
 )
 
 /**
- * Builder that collects type-safe installers for Navigation-Compose.
+ * Type-safe builder for Jetpack Compose Navigation using typed [NavDestination] routes.
+ *
+ * Example:
+ *
+ * ```kotlin
+ * @kotlinx.serialization.Serializable
+ * data object Home : NavDestination
+ *
+ * @kotlinx.serialization.Serializable
+ * data object Movies : NavDestination
+ *
+ * @kotlinx.serialization.Serializable
+ * data object Series : NavDestination
+ *
+ * fun TypedGraphBuilder.homeGraph() {
+ *     section<Home, Movies> {
+ *         screen<Movies> { MoviesScreen() }
+ *         screen<Series> { SeriesScreen() }
+ *     }
+ * }
+ * ```
  */
-class TypedGraphBuilder(
-     val currentRoot: KClass<out NavDestination>? = null
-) {
-
-    val installers = mutableListOf<NavGraphBuilder.() -> Unit>()
+class TypedGraphBuilder {
 
     /**
-     * Register a typed screen destination.
+     * Collected installers that will be applied to a [NavGraphBuilder]
+     * when the [TypedGraph] is installed.
+     */
+    val installers: MutableList<NavGraphBuilder.() -> Unit> = mutableListOf()
+
+    /**
+     * Register a type-safe screen for the given [NavDest].
      *
-     * The [content] composable receives a fully typed [NavDest] instance parsed
-     * from the back-stack entry via `toRoute<NavDest>()`.
-     *
-     * Every time the composable is entered, the navigation layer is notified
-     * via [HandleComposeNavigation.onDestinationComposed] so system back
-     * gestures and programmatic navigation stay in sync.
+     * The [content] composable receives a strongly typed instance of [NavDest],
+     * created from the current back stack entry via `entry.toRoute<NavDest>()`.
      */
     inline fun <reified NavDest : NavDestination> screen(
         noinline content: @Composable (NavDest) -> Unit
     ) {
-        // Track which logical "root section" this destination belongs to.
-        TypedDestinationRegistry.registerScreen(
-            destClass = NavDest::class,
-            rootClass = currentRoot
-        )
-
         installers += {
             composable<NavDest> { entry ->
                 val dest = entry.toRoute<NavDest>()
-                HandleComposeNavigation.onDestinationComposed(dest)
                 content(dest)
             }
         }
@@ -58,39 +64,42 @@ class TypedGraphBuilder(
     /**
      * Declare a nested navigation section.
      *
-     * [ParentNavDest] is the typed route representing the section root
-     * (for example `Home`), [ChildStartNavDest] is the start destination
-     * inside that section.
+     * - [ParentNavDest] is the typed route representing the section root.
+     * - [ChildStartNavDest] is the typed start destination of the section.
+     *
+     * Inside [block] you can call [screen] (and if you want, even other sections).
      */
     inline fun <reified ParentNavDest : NavDestination, reified ChildStartNavDest : NavDestination> section(
         noinline block: TypedGraphBuilder.() -> Unit
     ) {
-        // Mark parent as root for all children in this section.
-        TypedDestinationRegistry.registerSectionRoot(ParentNavDest::class)
-
-        val childBuilder = TypedGraphBuilder(currentRoot = ParentNavDest::class).apply(block)
-        val childGraph = childBuilder.build()
+        val childBuilder = TypedGraphBuilder().apply(block)
+        val childGraph = TypedGraph { childBuilder.installers.forEach { it(this) } }
 
         installers += {
             navigation<ParentNavDest>(startDestination = ChildStartNavDest::class) {
-                childGraph.installBlock(this)
+                childGraph.install(this)
             }
         }
     }
 
+    /**
+     * Build a [TypedGraph] from the current installers.
+     */
     fun build(): TypedGraph =
         TypedGraph { installers.forEach { it(this) } }
 }
 
 /**
- * Entry point for building a [TypedGraph].
+ * Entry point to create a [TypedGraph] using the [TypedGraphBuilder] DSL.
  */
-fun navGraph(block: TypedGraphBuilder.() -> Unit): TypedGraph =
-    TypedGraphBuilder().apply(block).build()
+fun navGraph(block: TypedGraphBuilder.() -> Unit): TypedGraph {
+    val builder = TypedGraphBuilder().apply(block)
+    return builder.build()
+}
 
 /**
- * Installs a [TypedGraph] into the current [NavGraphBuilder].
+ * Install a [TypedGraph] into the current [NavGraphBuilder].
  */
 fun NavGraphBuilder.install(graph: TypedGraph) {
-    graph.installBlock(this)
+    graph.install(this)
 }

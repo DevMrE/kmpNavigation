@@ -4,7 +4,6 @@ import androidx.navigation.NavHostController
 import co.touchlab.kermit.Logger
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.NavOptions
-import com.kmp.navigation.TypedDestinationRegistry
 import kotlin.reflect.KClass
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -115,18 +114,6 @@ object HandleComposeNavigation {
      */
     fun <D : NavDestination> handleSwitchTab(navDestination: D) {
         val controller = navController ?: return
-        val current = currentDestinationSnapshot
-
-        val requestedRoot: KClass<out NavDestination> =
-            TypedDestinationRegistry.rootClassOf(navDestination::class) ?: navDestination::class
-
-        val currentRoot: KClass<out NavDestination>? = current?.let {
-            TypedDestinationRegistry.rootClassOf(it::class) ?: it::class
-        }
-
-        // Already on this root: do nothing (prevents double navigation
-        // when tapping the same bottom-nav item repeatedly).
-        if (currentRoot != null && currentRoot == requestedRoot) return
 
         try {
             controller.navigate(navDestination) {
