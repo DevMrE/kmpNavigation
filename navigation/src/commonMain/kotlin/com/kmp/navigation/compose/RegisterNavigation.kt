@@ -8,7 +8,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.kmp.navigation.LocalNavigator
 import com.kmp.navigation.NavDestination
-import com.kmp.navigation.NavigationFactory
 import com.kmp.navigation.TypedGraph
 import com.kmp.navigation.TypedGraphBuilder
 import com.kmp.navigation.install
@@ -79,20 +78,16 @@ fun RegisterNavigation(
     content: NavGraphBuilder.() -> TypedGraph
 ) {
     val navController = rememberNavController()
+    val mutableNavigation = rememberMutableComposeNavigation(navController)
 
-    // Attach NavHostController and start tracking the root destination.
-    rememberMutableComposeNavigation(
-        navController = navController,
-        startDestination = startNavDestination
-    )
-
-    CompositionLocalProvider(LocalNavigator provides NavigationFactory.create()) {
+    CompositionLocalProvider(LocalNavigator provides mutableNavigation) {
         NavHost(
             modifier = modifier,
             navController = navController,
             startDestination = startNavDestination
         ) {
-            install(content())
+            val graph = content()
+            install(graph)
         }
     }
 }

@@ -1,18 +1,16 @@
 package com.kmp.navigation.compose
 
+import NavigationFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.navigation.NavHostController
 import com.kmp.navigation.LocalNavigator
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.Navigation
-import com.kmp.navigation.NavigationFactory
 import kotlin.reflect.KClass
-import kotlinx.coroutines.flow.collectLatest
 
 /**
  * Binds the shared Navigation implementation to the given [NavHostController]:
@@ -26,22 +24,12 @@ internal fun rememberMutableComposeNavigation(
     navController: NavHostController
 ): MutableComposeNavigation {
     val navigation = remember {
-        // Always go through the factory so we share the same instance
-        (NavigationFactory.mutableInstance as? MutableComposeNavigation)
-            ?: (NavigationFactory.create() as MutableComposeNavigation)
+        NavigationFactory.mutableInstance ?: NavigationImpl()
     }
 
-    // Attach / detach the NavController
     DisposableEffect(navigation, navController) {
         navigation.attach(navController)
         onDispose { navigation.detach() }
-    }
-
-    // Mirror Navigation-Compose backstack changes into our navigation layer
-    LaunchedEffect(navController) {
-        navController.currentBackStackEntryFlow.collectLatest { entry ->
-            HandleComposeNavigation.onBackstackEntryChanged(entry)
-        }
     }
 
     return navigation
@@ -64,12 +52,13 @@ internal fun rememberMutableComposeNavigation(
  * ```
  */
 @Composable
-fun rememberNavDestinationClass(
-    initialDestination: KClass<out NavDestination>
-): KClass<out NavDestination> {
-    val current by HandleComposeNavigation.currentDestinationClassFlow.collectAsState(
-        initial = HandleComposeNavigation.currentDestinationClassSnapshot ?: initialDestination
+fun rememberNavDestination(
+    initialDestination: NavDestination
+): NavDestination {
+    val current by HandleComposeNavigation.currentDestinationFlow.collectAsState(
+        initial = HandleComposeNavigation.currentDestinationSnapshot ?: initialDestination
     )
+
     return current ?: initialDestination
 }
 

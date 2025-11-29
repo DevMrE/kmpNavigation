@@ -1,83 +1,56 @@
 package com.kmp.navigation
 
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.serializer
 import kotlin.reflect.KClass
 
 /**
- * Internal registry used by the typed graph builder and the navigation layer.
+ * Internal registry that maps each typed [NavDestination] class to its logical
+ * "root" destination (usually the section parent).
  *
- * It keeps:
- * - a mapping from route (Navigation-Compose typed route) → NavDestination KClass
- * - a mapping from NavDestination KClass → root KClass (for sections / tabs)
- *
- * This allows us to:
- * - resolve the current destination type from NavBackStackEntry.route
- * - know which "root section" a destination belongs to (for switchTab)
+ * The mapping is built once while your typed graph is declared (via [screen]
+ * and [section]) and later used by the navigation runtime to reason about
+ * tab roots such as `Home` or `Settings`.
  */
 object TypedDestinationRegistry {
 
-    // route string -> destination KClass
-    @PublishedApi
-    internal val routeToClass = mutableMapOf<String, KClass<out NavDestination>>()
-
-    // destination KClass -> root KClass (section parent or itself)
-    @PublishedApi
-    internal val classToRoot = mutableMapOf<KClass<out NavDestination>, KClass<out NavDestination>>()
+    // Leaf (screen) -> root (section / itself)
+    private val destToRoot: MutableMap<KClass<out NavDestination>, KClass<out NavDestination>> =
+        mutableMapOf()
 
     /**
-     * Register a screen destination with its optional root section.
+     * Register a leaf screen [destClass] and the optional [rootClass] it belongs to.
      *
-     * @param rootClass the KClass of the root section parent, or null if this
-     *                  screen is itself a root (top level destination).
+     * If [rootClass] is null, the destination is considered its own root.
      */
-    @PublishedApi
-    internal inline fun <reified NavDest : NavDestination> registerScreen(
+    fun registerScreen(
+        destClass: KClass<out NavDestination>,
         rootClass: KClass<out NavDestination>?
     ) {
-        val destClass = NavDest::class
         val effectiveRoot = rootClass ?: destClass
 
-        // track root mapping
-        classToRoot[destClass] = effectiveRoot
-        if (!classToRoot.containsKey(effectiveRoot)) {
-            classToRoot[effectiveRoot] = effectiveRoot
-        }
-
-        // typed Navigation-Compose uses the kotlinx.serialization serialName as route
-        val route = routeOf<NavDest>()
-        routeToClass[route] = destClass
+        destToRoot[destClass] = effectiveRoot
+        // ensure root also maps to itself
+        destToRoot.getOrPut(effectiveRoot) { effectiveRoot }
     }
 
     /**
-     * Marks the given parent as a root section.
-     *
-     * All screens declared inside the corresponding `section<Parent, ...>` block
-     * will use this parent as their root.
+     * Explicitly register a parent section root so it can later be used in
+     * comparisons even if it has no dedicated [screen] entry itself.
      */
-    @PublishedApi
-    internal inline fun <reified ParentNavDest : NavDestination> registerSectionRoot() {
-        val parentClass = ParentNavDest::class
-        classToRoot[parentClass] = parentClass
+    fun registerSectionRoot(rootClass: KClass<out NavDestination>) {
+        destToRoot.getOrPut(rootClass) { rootClass }
     }
 
     /**
-     * Returns the destination KClass for the given Navigation route, or null
-     * if this route has not been registered (e.g. non-typed destinations).
+     * Returns the logical root class for the given leaf [destClass].
+     * If no mapping is known, null is returned.
      */
-    fun classForRoute(route: String): KClass<out NavDestination>? =
-        routeToClass[route]
+    internal fun rootClassOf(
+        destClass: KClass<out NavDestination>
+    ): KClass<out NavDestination>? = destToRoot[destClass]
 
     /**
-     * Returns the root KClass for a given destination type.
-     *
-     * If no explicit root mapping exists, the class is considered its own root.
+     * Convenience: resolve the root for an actual [NavDestination] instance.
      */
-    fun rootForClass(destClass: KClass<out NavDestination>): KClass<out NavDestination> =
-        classToRoot[destClass] ?: destClass
-
-    @OptIn(ExperimentalSerializationApi::class)
-    @PublishedApi
-    internal inline fun <reified NavDest : NavDestination> routeOf(): String =
-        serializer<NavDest>().descriptor.serialName
+    internal fun rootOf(dest: NavDestination): KClass<out NavDestination>? =
+        rootClassOf(dest::class)
 }

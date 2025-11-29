@@ -1,102 +1,79 @@
 package com.kmp.navigation.compose
 
-import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import co.touchlab.kermit.Logger
-import com.kmp.navigation.DefaultRouteIdProvider
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.NavOptions
-import com.kmp.navigation.RouteIdProvider
 import com.kmp.navigation.TypedDestinationRegistry
 import kotlin.reflect.KClass
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Internal bridge between:
- *
- * - the public [Navigation] API used from ViewModels / Composables
- * - the underlying [NavHostController] from Navigation-Compose
+ * Central navigation runtime used by the KMP navigation library.
  *
  * Responsibilities:
- * - Attach/detach the NavHostController
- * - Execute typed navigation calls (navigateTo, switchTab, popBackTo, navigateUp)
- * - Track the *current* typed destination KClass via [currentDestinationClassFlow]
+ * - Holds the current [NavHostController].
+ * - Tracks the currently shown typed [NavDestination].
+ * - Implements the behavior for `navigateTo`, `switchTab`, `popBackTo`, `navigateUp`.
+ *
+ * The current destination is updated from within each typed screen via
+ * [onDestinationComposed], so system back gestures are handled automatically.
  */
-internal object HandleComposeNavigation {
+object HandleComposeNavigation {
+
+    private const val TAG = "Navigation"
 
     var navController: NavHostController? = null
         private set
 
-    private val routeIdProvider: RouteIdProvider = DefaultRouteIdProvider
+    private val _currentDestination = MutableStateFlow<NavDestination?>(null)
 
-    // --- state exposed to the Compose layer -----------------------------------
+    /**
+     * Flow of the currently visible typed [NavDestination].
+     */
+    val currentDestinationFlow: StateFlow<NavDestination?> = _currentDestination
 
-    private val _currentDestinationClass =
-        MutableStateFlow<KClass<out NavDestination>?>(null)
+    /**
+     * Snapshot accessor used by `rememberNavDestination`.
+     */
+    val currentDestinationSnapshot: NavDestination?
+        get() = _currentDestination.value
 
-    val currentDestinationClassFlow: StateFlow<KClass<out NavDestination>?> =
-        _currentDestinationClass
-
-    val currentDestinationClassSnapshot: KClass<out NavDestination>?
-        get() = _currentDestinationClass.value
-
-    private val _currentRootClass =
-        MutableStateFlow<KClass<out NavDestination>?>(null)
-
-    // --- lifecycle -------------------------------------------------------------
-
-    fun attach(controller: NavHostController) {
-        navController = controller
-    }
-
-    fun detach() {
-        navController = null
-        _currentDestinationClass.value = null
-        _currentRootClass.value = null
+    /**
+     * Called from each typed screen when its composable content enters composition.
+     *
+     * This keeps [currentDestinationFlow] in sync with whatever the `NavHost` is
+     * currently displaying (including system back, gesture navigation, etc.).
+     */
+    fun onDestinationComposed(destination: NavDestination) {
+        _currentDestination.value = destination
     }
 
     /**
-     * Called from the Compose layer whenever Navigation-Compose reports that the
-     * current backstack entry has changed (including system back / gestures).
+     * Typed `navigateTo` implementation.
      *
-     * We translate the entry's route into a typed [NavDestination] KClass using
-     * [TypedDestinationRegistry].
+     * - Uses the provided [NavOptions] to configure singleTop, restoreState
+     *   and backstack behavior.
+     * - Ignores navigation when the requested destination is already current.
      */
-    fun onBackstackEntryChanged(entry: NavBackStackEntry) {
-        val route = entry.destination.route ?: return
-        val destClass = TypedDestinationRegistry.classForRoute(route) ?: run {
-            Logger.d("Navigation") {
-                "Unknown typed destination route=$route; not registered " +
-                        "via TypedGraphBuilder.screen/section."
-            }
-            return
-        }
-
-        _currentDestinationClass.value = destClass
-        _currentRootClass.value = TypedDestinationRegistry.rootForClass(destClass)
-    }
-
-    // --- public navigation operations used by NavigationImpl -------------------
-
     fun <D : NavDestination> handleNavigateTo(
         navDestination: D,
         options: NavOptions.() -> Unit
     ) {
         val controller = navController ?: return
 
-        val targetId = idOf(navDestination)
-        val currentId = controller.currentDestination?.id
+        // Avoid re-navigating to the same destination instance.
+        if (currentDestinationSnapshot == navDestination) return
 
-        // Avoid re-navigating to the same destination ID
-        if (currentId == targetId) return
+        val opts = NavOptions().apply(options)
 
         try {
-            val opts = NavOptions().apply(options)
-
             controller.navigate(navDestination) {
                 launchSingleTop = opts.singleTop
-                if (opts.restoreState) restoreState = true
+                if (opts.restoreState) {
+                    restoreState = true
+                }
 
                 when (val backstack = opts.backstack) {
                     is NavOptions.Backstack.PopTo -> {
@@ -107,9 +84,9 @@ internal object HandleComposeNavigation {
                     }
 
                     is NavOptions.Backstack.Clear -> {
-                        // Clear the entire back stack (up to the graph root)
-                        controller.graph.id.let { graphId ->
-                            popUpTo(graphId) { inclusive = false }
+                        // Clear everything up to the graph root.
+                        popUpTo(controller.graph.id) {
+                            inclusive = false
                         }
                     }
 
@@ -117,51 +94,59 @@ internal object HandleComposeNavigation {
                 }
             }
         } catch (e: IllegalArgumentException) {
-            Logger.e("Navigation") {
-                "navigateTo(${navDestination::class.simpleName}) failed: ${e.message}"
-            }
+            Logger.e(
+                tag = TAG,
+                messageString = e.message ?: "navigateTo($navDestination) failed",
+                throwable = e
+            )
         }
     }
 
     /**
-     * Switch between "root" destinations (tabs / sections).
+     * Switch between high-level sections such as Home / Settings.
      *
-     * The root concept is defined by [TypedDestinationRegistry]:
-     * - A screen declared via `screen<Dest>` outside any `section` is its own root.
-     * - A screen declared inside `section<Parent, ...>` has [Parent] as root.
+     * The current logical "root" is derived from the active destination using
+     * [TypedDestinationRegistry]. When the requested root is already active,
+     * this is a no-op so repeated clicks on the same tab do not push
+     * additional entries.
      *
-     * This method:
-     * - does nothing if the target root is already active
-     * - otherwise navigates to [navDestination] and clears the previous root from
-     *   the backstack so system back does not jump to the previous tab.
+     * The actual back stack is still managed by Navigation-Compose, so system
+     * back from one section returns to whatever was below it on the stack.
      */
-    fun <D : NavDestination> handleSwitchTo(navDestination: D) {
+    fun <D : NavDestination> handleSwitchTab(navDestination: D) {
         val controller = navController ?: return
+        val current = currentDestinationSnapshot
 
-        val targetClass = navDestination::class
-        val targetRoot = TypedDestinationRegistry.rootForClass(targetClass)
-        val currentRoot = _currentRootClass.value
+        val requestedRoot: KClass<out NavDestination> =
+            TypedDestinationRegistry.rootClassOf(navDestination::class) ?: navDestination::class
 
-        // Already on this root → no-op
-        if (currentRoot == targetRoot) return
+        val currentRoot: KClass<out NavDestination>? = current?.let {
+            TypedDestinationRegistry.rootClassOf(it::class) ?: it::class
+        }
+
+        // Already on this root: do nothing (prevents double navigation
+        // when tapping the same bottom-nav item repeatedly).
+        if (currentRoot != null && currentRoot == requestedRoot) return
 
         try {
             controller.navigate(navDestination) {
+                // Avoid_duplicates at the top of the stack.
                 launchSingleTop = true
-
-                // Treat root switches as "replace root":
-                // clear backstack up to the start destination of the graph.
-                popUpTo(controller.graph.startDestinationId) {
-                    inclusive = true
-                }
             }
-        } catch (e: Exception) {
-            Logger.e("Navigation") {
-                "switchTab(${navDestination::class.simpleName}) failed: ${e.message}"
-            }
+        } catch (e: IllegalArgumentException) {
+            Logger.e(
+                tag = TAG,
+                messageString = e.message ?: "switchTab($navDestination) failed",
+                throwable = e
+            )
         }
     }
 
+    /**
+     * Typed `popBackTo` implementation.
+     *
+     * When [navDestination] is null, it behaves like a simple `popBackStack()`.
+     */
     fun <D : NavDestination> handlePopBackTo(
         navDestination: D?,
         inclusive: Boolean
@@ -170,9 +155,12 @@ internal object HandleComposeNavigation {
 
         if (navDestination == null) {
             controller.popBackStack()
-        } else {
-            val ok = controller.popBackStack(navDestination, inclusive)
-            if (!ok) controller.popBackStack()
+            return
+        }
+
+        val popped = controller.popBackStack(navDestination, inclusive = inclusive)
+        if (!popped) {
+            controller.popBackStack()
         }
     }
 
@@ -180,8 +168,12 @@ internal object HandleComposeNavigation {
         navController?.navigateUp()
     }
 
-    // --- helper ----------------------------------------------------------------
+    fun attach(controller: NavHostController) {
+        navController = controller
+    }
 
-    private fun <D : NavDestination> idOf(destination: D): Int =
-        routeIdProvider.idFor(destination::class)
+    fun detach() {
+        navController = null
+        _currentDestination.value = null
+    }
 }
