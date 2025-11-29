@@ -108,7 +108,7 @@ object HandleComposeNavigation {
      * The actual back stack is still managed by Navigation-Compose, so system
      * back from one section returns to whatever was below it on the stack.
      */
-    fun <D : NavDestination> handleSwitchTab(navDestination: D) {
+    fun <D : NavDestination> handleSwitchTo(navDestination: D) {
         val controller = navController ?: return
 
         try {
