@@ -1,11 +1,5 @@
 package com.kmp.navigation
 
-/**
- * Type-safe navigation graph builder for Jetpack Compose Navigation (typed routes).
- *
- * Use this DSL to declare your graph with strongly typed [NavDestination] routes.
- */
-
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -13,8 +7,13 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.toRoute
 import kotlin.reflect.KClass
 
+/**
+ * Type-safe navigation graph builder for Jetpack Compose Navigation (typed routes).
+ *
+ * Use this DSL to declare your graph with strongly typed [NavDestination] routes.
+ */
 class TypedGraph internal constructor(
-    internal val installBlock: NavGraphBuilder.() -> Unit
+    @PublishedApi internal val installers: List<NavGraphBuilder.() -> Unit>
 )
 
 /**
@@ -72,18 +71,22 @@ class TypedGraphBuilder @PublishedApi internal constructor(
         // Mark parent as root for all children in this section
         TypedDestinationRegistry.registerSectionRoot<ParentNavDest>()
 
+        // Child graph gets ParentNavDest as root
         val childBuilder = TypedGraphBuilder(currentRoot = ParentNavDest::class).apply(block)
         val childGraph = childBuilder.build()
 
         installers += {
             navigation<ParentNavDest>(startDestination = ChildStartNavDest::class) {
-                childGraph.install(this)
+                // Statt childGraph.install(this) direkt alle Installer ausführen
+                childGraph.installers.forEach { installer ->
+                    installer(this)
+                }
             }
         }
     }
 
-    internal fun build(): TypedGraph =
-        TypedGraph { installers.forEach { it(this) } }
+    fun build(): TypedGraph =
+        TypedGraph(installers.toList())
 }
 
 /**
@@ -97,5 +100,7 @@ fun navGraph(block: TypedGraphBuilder.() -> Unit): TypedGraph {
  * Install a [TypedGraph] into the current [NavGraphBuilder].
  */
 fun NavGraphBuilder.install(graph: TypedGraph) {
-    graph.installBlock(this)
+    graph.installers.forEach { installer ->
+        installer(this)
+    }
 }

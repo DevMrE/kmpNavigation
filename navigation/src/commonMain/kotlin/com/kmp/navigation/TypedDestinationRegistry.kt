@@ -1,5 +1,6 @@
 package com.kmp.navigation
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.serializer
 import kotlin.reflect.KClass
 
@@ -22,8 +23,7 @@ object TypedDestinationRegistry {
 
     // destination KClass -> root KClass (section parent or itself)
     @PublishedApi
-    internal val classToRoot =
-        mutableMapOf<KClass<out NavDestination>, KClass<out NavDestination>>()
+    internal val classToRoot = mutableMapOf<KClass<out NavDestination>, KClass<out NavDestination>>()
 
     /**
      * Register a screen destination with its optional root section.
@@ -76,6 +76,7 @@ object TypedDestinationRegistry {
     fun rootForClass(destClass: KClass<out NavDestination>): KClass<out NavDestination> =
         classToRoot[destClass] ?: destClass
 
+    @OptIn(ExperimentalSerializationApi::class)
     @PublishedApi
     internal inline fun <reified NavDest : NavDestination> routeOf(): String =
         serializer<NavDest>().descriptor.serialName
