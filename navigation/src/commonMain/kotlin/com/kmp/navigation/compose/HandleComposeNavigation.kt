@@ -4,7 +4,8 @@ import androidx.navigation.NavHostController
 import co.touchlab.kermit.Logger
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.NavOptions
-import kotlin.reflect.KClass
+import com.kmp.navigation.compose.HandleComposeNavigation.currentDestinationFlow
+import com.kmp.navigation.compose.HandleComposeNavigation.onDestinationComposed
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -103,11 +104,6 @@ object HandleComposeNavigation {
 
     /**
      * Switch between high-level sections such as Home / Settings.
-     *
-     * The current logical "root" is derived from the active destination using
-     * [TypedDestinationRegistry]. When the requested root is already active,
-     * this is a no-op so repeated clicks on the same tab do not push
-     * additional entries.
      *
      * The actual back stack is still managed by Navigation-Compose, so system
      * back from one section returns to whatever was below it on the stack.
