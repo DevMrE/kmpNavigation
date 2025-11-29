@@ -8,6 +8,7 @@ import com.kmp.navigation.NavDestination
 import com.kmp.navigation.NavOptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Central navigation coordinator for Compose Navigation.
@@ -72,7 +73,7 @@ internal object HandleComposeNavigation {
         destination: NavDestination
     ) {
         rootDestinationByRootId[rootGraphId] = destination
-        _currentRootDestination.value = destination
+        _currentRootDestination.update { destination }
     }
 
     /**
@@ -92,7 +93,7 @@ internal object HandleComposeNavigation {
         val rootDestination = rootDestinationByRootId[rootId] ?: return
 
         if (_currentRootDestination.value != rootDestination) {
-            _currentRootDestination.value = rootDestination
+            _currentRootDestination.update { rootDestination }
         }
     }
 
