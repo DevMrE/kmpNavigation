@@ -12,7 +12,7 @@ import com.kmp.navigation.Navigation
  * Used by `RegisterNavigation` via `rememberMutableComposeNavigation()` to
  * provide a Compose-bound navigation implementation to the UI tree.
  */
-internal interface MutableComposeNavigation : Navigation {
+interface MutableComposeNavigation : Navigation {
     fun attach(controller: NavHostController)
     fun detach()
 }

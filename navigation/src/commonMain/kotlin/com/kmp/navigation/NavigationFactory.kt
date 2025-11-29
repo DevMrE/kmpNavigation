@@ -4,22 +4,36 @@ import com.kmp.navigation.compose.MutableComposeNavigation
 import com.kmp.navigation.compose.NavigationImpl
 
 /**
- * Entry point for obtaining the shared [Navigation] instance.
+ * Factory for creating and sharing the Navigation implementation.
  *
- * Internally:
- * - A single [NavigationImpl] instance is created.
- * - It is used:
- *     - inside Compose (via [rememberNavDestination] / [RegisterNavigation])
- *     - in ViewModels via DI as [Navigation].
+ * - Use this from DI:
+ *   single<Navigation> { NavigationFactory.create() }
  *
- * Consumers should depend only on [Navigation]; implementation details
- * (NavigationImpl, MutableComposeNavigation) stay internal to the library.
+ * - Internally, the Compose side (rememberMutableComposeNavigation) will also
+ *   call [create] as a fallback, so there is always exactly ONE shared instance.
  */
 object NavigationFactory {
 
-    private val impl = NavigationImpl()
+    /**
+     * Backing instance used by the Compose layer.
+     *
+     * Do not mutate this directly from the outside. Always go through [create].
+     */
+    var mutableInstance: MutableComposeNavigation? = null
+        internal set
 
-    internal val mutableInstance: MutableComposeNavigation = impl
+    /**
+     * Returns a shared [Navigation] implementation.
+     *
+     * If an instance already exists (created earlier by Compose or DI),
+     * it is reused. Otherwise a new [NavigationImpl] is created.
+     */
+    fun create(): Navigation {
+        val existing = mutableInstance
+        if (existing != null) return existing
 
-    fun create(): Navigation = impl
+        val impl = NavigationImpl()
+        mutableInstance = impl
+        return impl
+    }
 }
