@@ -1,20 +1,13 @@
 package com.kmp.navigation.compose
 
+import androidx.navigation.NavDestination as AndroidNavDestination
 import androidx.navigation.NavGraph
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import co.touchlab.kermit.Logger
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.NavOptions
-import com.kmp.navigation.compose.HandleComposeNavigation.currentDestinationFlow
-import com.kmp.navigation.compose.HandleComposeNavigation.handleNavigateTo
-import com.kmp.navigation.compose.HandleComposeNavigation.handlePopBackTo
-import com.kmp.navigation.compose.HandleComposeNavigation.handleSwitchTo
-import com.kmp.navigation.compose.HandleComposeNavigation.navController
-import com.kmp.navigation.compose.HandleComposeNavigation.navigateUp
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import androidx.navigation.NavDestination as AndroidNavDestination
 
 /**
  * Central navigation coordinator for Compose Navigation.
@@ -46,7 +39,7 @@ internal object HandleComposeNavigation {
      * Maps root-graph node IDs (top-level children of the NavHost graph)
      * to their typed root destination (e.g. HomeScreenDestination, SettingsScreenDestination).
      */
-    private val lastRootDestinationByRootId = mutableMapOf<Int, NavDestination>()
+    private val rootDestinationByRootId = mutableMapOf<Int, NavDestination>()
 
     /**
      * Current root destination (for example "Home" or "Settings").
@@ -63,12 +56,12 @@ internal object HandleComposeNavigation {
 
     fun detach() {
         navController = null
-        lastRootDestinationByRootId.clear()
+        rootDestinationByRootId.clear()
         _currentRootDestination.value = null
     }
 
     /**
-     * Register a root graph (identified by [rootGraphId]) with its typed start [destination].
+     * Register a root graph (identified by [rootGraphId]) with its typed root [destination].
      *
      * Called:
      * - once at start (for the initial root)
@@ -78,7 +71,7 @@ internal object HandleComposeNavigation {
         rootGraphId: Int,
         destination: NavDestination
     ) {
-        lastRootDestinationByRootId[rootGraphId] = destination
+        rootDestinationByRootId[rootGraphId] = destination
         _currentRootDestination.value = destination
     }
 
@@ -96,7 +89,7 @@ internal object HandleComposeNavigation {
     internal fun onBackstackDestinationChanged(destinationId: Int) {
         val controller = navController ?: return
         val rootId = rootIdForDestinationId(controller, destinationId) ?: return
-        val rootDestination = lastRootDestinationByRootId[rootId] ?: return
+        val rootDestination = rootDestinationByRootId[rootId] ?: return
 
         if (_currentRootDestination.value != rootDestination) {
             _currentRootDestination.value = rootDestination
@@ -160,13 +153,14 @@ internal object HandleComposeNavigation {
      *
      * Behavior:
      * - If the requested root is already active, nothing happens.
-     * - Otherwise we use the official multi-backstack pattern:
-     *     - popUpTo(startDestination) with saveState = true
+     * - Otherwise we use a multi-backstack-like pattern:
+     *     - popUpTo(navController.graph.startDestinationId) with saveState = true
      *     - launchSingleTop = true
      *     - restoreState = true
      *
      * This lets the navigation system itself restore the last screen
-     * inside each tab (e.g. Home-Series instead of always Home-Movies).
+     * inside each tab (e.g. Home-Series instead of always Home-Movies),
+     * *provided* you don't break the Home backstack yourself.
      */
     fun <D : NavDestination> handleSwitchTo(navDestination: D) {
         val controller = navController ?: return
@@ -178,11 +172,12 @@ internal object HandleComposeNavigation {
 
         try {
             controller.navigate(navDestination) {
-                // Official multi-backstack pattern:
                 launchSingleTop = true
                 restoreState = true
 
-                popUpTo(controller.graph.findStartDestination().id) {
+                // IMPORTANT: use startDestinationId, NOT findStartDestination().id
+                // to avoid popping into nested graphs.
+                popUpTo(controller.graph.startDestinationId) {
                     saveState = true
                 }
             }
@@ -220,7 +215,7 @@ internal object HandleComposeNavigation {
                 controller.popBackStack()
             }
         }
-        // We let currentBackStackEntryFlow update currentRootDestination.
+        // Root tracking is updated via currentBackStackEntryFlow.
     }
 
     /**

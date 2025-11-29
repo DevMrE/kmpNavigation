@@ -40,8 +40,8 @@ internal fun rememberMutableComposeNavigation(
 
     // Register the initial root tab once the graph is available.
     LaunchedEffect(navController, startDestination) {
-        val startId = navController.graph.findStartDestination().id
-        HandleComposeNavigation.registerRootGraph(startId, startDestination)
+        val rootStartId = navController.graph.startDestinationId
+        HandleComposeNavigation.registerRootGraph(rootStartId, startDestination)
     }
 
     // Keep root-destination state in sync with the NavController back stack.
