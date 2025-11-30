@@ -32,7 +32,8 @@ class NavigationController : Navigation {
     data class State(
         val currentDestination: NavDestination? = null,
         val currentSection: KClass<out NavSection>? = null,
-        val backStack: List<NavDestination> = emptyList()
+        val backStack: List<NavDestination> = emptyList(),
+        val lastEvent: NavigationEvent = NavigationEvent.Idle
     )
 
     private val backStack = mutableListOf<NavDestination>()
@@ -51,6 +52,9 @@ class NavigationController : Navigation {
     // section type -> last visited destination of that section
     private val lastDestinationPerSection =
         mutableMapOf<KClass<out NavSection>, NavDestination>()
+
+    // last operation that changed the back stack
+    private var lastEvent: NavigationEvent = NavigationEvent.Idle
 
     /**
      * Configure section information.
@@ -75,7 +79,8 @@ class NavigationController : Navigation {
         _state.value = State(
             currentDestination = current,
             currentSection = currentSection,
-            backStack = backStack.toList()
+            backStack = backStack.toList(),
+            lastEvent = lastEvent
         )
     }
 
@@ -83,6 +88,8 @@ class NavigationController : Navigation {
         navDestination: D,
         options: NavOptions.() -> Unit
     ) {
+        lastEvent = NavigationEvent.NavigateTo
+
         val navOptions = NavOptions().apply(options)
 
         // Handle back stack options on the global stack
@@ -125,6 +132,8 @@ class NavigationController : Navigation {
     }
 
     override fun switchTo(section: NavSection) {
+        lastEvent = NavigationEvent.SwitchTo
+
         val sectionKey: KClass<out NavSection> = section::class
 
         // 1) Look up last visited destination of this section
@@ -146,11 +155,22 @@ class NavigationController : Navigation {
 
         // 4) Push target as a new history entry
         backStack += target
+
+        // update last for section
+        sectionOf(target)?.let { s ->
+            lastDestinationPerSection[s] = target
+        }
+
         updateState()
     }
 
     override fun navigateUp() {
-        if (backStack.size <= 1) return
+        lastEvent = NavigationEvent.NavigateUp
+
+        if (backStack.size <= 1) {
+            updateState()
+            return
+        }
         backStack.removeLast()
         updateState()
     }
@@ -159,6 +179,8 @@ class NavigationController : Navigation {
         navDestination: D?,
         inclusive: Boolean
     ) {
+        lastEvent = NavigationEvent.PopBackTo
+
         if (navDestination == null) {
             navigateUp()
             return

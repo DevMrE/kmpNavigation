@@ -1,8 +1,6 @@
 package com.kmp.navigation
 
 import androidx.compose.runtime.Composable
-import com.kmp.navigation.GlobalNavigation.controller
-import com.kmp.navigation.GlobalNavigation.navigation
 import kotlin.reflect.KClass
 
 /**
@@ -19,6 +17,10 @@ object NavigationGraph {
 
     private val sectionRoots =
         mutableMapOf<KClass<out NavSection>, NavDestination>()
+
+    // section type -> position index (used for swipe direction)
+    private val sectionIndices =
+        mutableMapOf<KClass<out NavSection>, Int>()
 
     private var configured: Boolean = false
 
@@ -55,6 +57,9 @@ object NavigationGraph {
         screens.clear()
         destinationSections.clear()
         sectionRoots.clear()
+        sectionIndices.clear()
+
+        var nextSectionIndex = 0
 
         val dsl = RegisterNavigationBuilder(
             registerScreen = { key, screen ->
@@ -67,6 +72,9 @@ object NavigationGraph {
             },
             registerSectionRoot = { section, root ->
                 sectionRoots[section] = root
+                if (!sectionIndices.containsKey(section)) {
+                    sectionIndices[section] = nextSectionIndex++
+                }
             }
         )
         dsl.builder()
@@ -74,14 +82,15 @@ object NavigationGraph {
         configured = true
 
         // Inform the NavigationController about section mapping & roots
-        controller.configureSections(
+        GlobalNavigation.controller.configureSections(
             destinationToSection = destinationSections.toMap(),
             sectionRoots = sectionRoots.toMap()
         )
 
         // Set initial destination once
+        val controller = GlobalNavigation.controller
         if (controller.state.value.currentDestination == null) {
-            navigation.navigateTo(startDestination) {
+            GlobalNavigation.navigation.navigateTo(startDestination) {
                 clearStack()
             }
         }
@@ -90,4 +99,15 @@ object NavigationGraph {
     internal fun findScreen(
         destination: NavDestination
     ): (@Composable (NavDestination) -> Unit)? = screens[destination::class]
+
+    /**
+     * Returns the position index of the section that the given [destination] belongs to,
+     * or `null` if the destination is not associated with any section.
+     *
+     * The index is assigned in declaration order of `section<...>()` inside the DSL.
+     */
+    internal fun sectionIndexFor(destination: NavDestination): Int? {
+        val sectionClass = destinationSections[destination::class] ?: return null
+        return sectionIndices[sectionClass]
+    }
 }
