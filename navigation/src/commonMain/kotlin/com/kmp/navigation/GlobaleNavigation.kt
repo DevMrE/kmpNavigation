@@ -1,6 +1,5 @@
 package com.kmp.navigation
 
-import com.kmp.navigation.NavigationController
 import com.kmp.navigation.compose.rememberNavigation
 
 /**
