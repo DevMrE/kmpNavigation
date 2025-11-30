@@ -1,15 +1,11 @@
-import com.kmp.navigation.Navigation
-import com.kmp.navigation.compose.MutableComposeNavigation
+package com.kmp.navigation
+
+import androidx.compose.runtime.Composable
 import com.kmp.navigation.compose.NavigationImpl
 
+/**
+ * Factory, um die Standard-Implementierung zu kapseln.
+ */
 object NavigationFactory {
-
-    internal var mutableInstance: MutableComposeNavigation? = null
-        set
-
-    fun create(): Navigation {
-        val impl = NavigationImpl()
-        mutableInstance = impl
-        return impl
-    }
+    fun create(): Navigation = NavigationImpl
 }

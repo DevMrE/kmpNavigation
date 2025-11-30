@@ -1,6 +1,5 @@
 package com.kmp.navigation
 
-import androidx.lifecycle.ViewModel
 import com.kmp.navigation.di.navigationModule
 import org.koin.dsl.module
 

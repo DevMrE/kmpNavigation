@@ -2,25 +2,26 @@ package com.kmp.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.remember
+import org.koin.mp.KoinPlatform.getKoin
+import com.kmp.navigation.compose.RegisterNavigation
+import org.koin.compose.koinInject
 
-/**
- * CompositionLocal that provides the current `Navigation` instance to Composables.
- *
- * Provided by: `RegisterNavigation`, which installs a `NavHost` and supplies
- * a `Navigation` implementation to the composition tree.
- *
- * Access pattern:
- * ```kotlin
- * @Composable
- * fun MyComposable() {
- *     val navigation = LocalNavigator.current
- *     // use navigation with a ViewModel context receiver
- * }
- * ```
- */
-internal val LocalNavigator = staticCompositionLocalOf<Navigation> {
-    error("Navigator not provided")
+val LocalNavigation = staticCompositionLocalOf<Navigation> {
+    error("No Navigation provided. Make sure you are inside RegisterNavigation.")
 }
 
 @Composable
-fun rememberNavigation(): Navigation = LocalNavigator.current
+internal fun provideNavigationInstance(): Navigation {
+    return runCatching {
+        koinInject<Navigation>()
+    }.getOrElse {
+        remember { NavigationFactory.create() }
+    }
+}
+
+/**
+ * Returns the last [Navigation] from an [RegisterNavigation]
+ */
+@Composable
+fun rememberNavigation(): Navigation = LocalNavigation.current
