@@ -5,56 +5,55 @@ import com.kmp.navigation.compose.RegisterNavigationBuilder
 import kotlin.reflect.KClass
 
 /**
- * Global registry mapping [NavDestination] types to their composable content.
- *
- * It is configured once via [configureNavigationGraph] / [registerNavigation].
+ * Global registry mapping [NavDestination] types to their composable content
+ * and tracking section membership.
  */
 object NavigationGraph {
 
     private val screens =
         mutableMapOf<KClass<out NavDestination>, @Composable (NavDestination) -> Unit>()
+
+    private val destinationSections =
+        mutableMapOf<KClass<out NavDestination>, KClass<out NavSection>>()
+
     private var configured: Boolean = false
 
-    /**
-     * Returns whether the graph has been configured already.
-     */
     fun isConfigured(): Boolean = configured
 
     /**
-     * Configure the navigation graph using the DSL in [RegisterNavigationBuilder].
-     *
-     * This function is not composable and can be called from any initialization
-     * code (e.g. in your Application, main entry point, or before showing the UI).
-     *
-     * ```kotlin
-     * configureNavigationGraph(
-     *     startDestination = HomeScreenDestination
-     * ) {
-     *     section<HomeSection, MovieScreenDestination> {
-     *         screen<MovieScreenDestination> { MovieScreen() }
-     *         screen<SeriesScreenDestination> { SeriesScreen() }
-     *     }
-     *     section<AuthSection, LoginDestination> {
-     *         screen<LoginDestination> { LoginScreen() }
-     *         screen<RegisterDestination> { RegisterScreen() }
-     *     }
-     * }
-     * ```
+     * Configure the navigation graph and set [startDestination] as the initial entry.
      */
     fun configureNavigationGraph(
         startDestination: NavDestination,
         builder: RegisterNavigationBuilder.() -> Unit
     ) {
         screens.clear()
+        destinationSections.clear()
 
-        val navBuilder = RegisterNavigationBuilder { key, content ->
-            if (screens.put(key, content) != null) {
-                error("Destination $key is already registered. Did you register it twice?")
+        val dsl = RegisterNavigationBuilder(
+            registerScreen = { key, screen ->
+                if (screens.put(key, screen) != null) {
+                    error("Destination $key is already registered.")
+                }
+            },
+            registerSectionRoot = { section, root ->
+                // we no longer need root KClass here for reflection
+                // but we keep section-root info available if you want to use it later
+                // (e.g. for debugging or tooling)
+                destinationSections[root] = section
+            },
+            registerDestinationSection = { dest, section ->
+                destinationSections[dest] = section
             }
-        }
-        navBuilder.builder()
+        )
+        dsl.builder()
 
         configured = true
+
+        // Inform the NavigationController about section mapping
+        GlobalNavigation.controller.configureSections(
+            destinationToSection = destinationSections.toMap()
+        )
 
         // Set initial destination once
         val controller = GlobalNavigation.controller

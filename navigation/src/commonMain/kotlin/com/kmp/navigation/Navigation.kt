@@ -1,57 +1,43 @@
 package com.kmp.navigation
 
-import com.kmp.navigation.di.navigationModule
-import org.koin.dsl.module
+import kotlin.reflect.KClass
 
 /**
- * This interface can be injected into viewModels after the navigationModule
- * has been added to koin and used for navigation within the viewModel.
- *
- * Characteristics:
- * - Type-safe destinations via [NavDestination].
- * - Options for singleTop, restoreState, and back stack behavior via [NavOptions].
- * - Make sure to add the [navigationModule] into your koinModules [module]
- *
- * Possible calling fun:
- * - [navigateTo] for navigating into an another screen
- * - [switchTab] for switching between screen without adding the destination to the stack.
- * - [navigateUp] navigates back
- * - [popBackTo] jumps back to the defined [NavDestination]
- *
- * Basic usage from a ViewModel:
- * ```kotlin
- * class MyViewModel(private val navigation: Navigation) : ViewModel() {
- *     fun openDetails(id: String) {
- *         navigation.navigateTo(MyDetailDestination(id))
- *     }
- * }
- * ```
+ * Platform-agnostic navigation API.
  */
 interface Navigation {
 
-    /**
-     * Navigate to the given destination. Configure behavior via [options].
-     * @param navDestination The [NavDestination] to navigate
-     */
-    fun <D : NavDestination> navigateTo(navDestination: D, options: NavOptions.() -> Unit = {})
+    fun <D : NavDestination> navigateTo(
+        navDestination: D,
+        options: NavOptions.() -> Unit = {}
+    )
 
     /**
-     * Switch to a different tab destination.
-     * Implemented to be singleTop + restoreState.
+     * Switch to the given [NavSection].
+     *
+     * The implementation will:
+     * 1. Look up the last visited destination of that section, if any.
+     * 2. Otherwise, fall back to a sensible default (e.g. a configured root).
+     * 3. Push that destination onto the global back stack.
      */
-    fun <D : NavDestination> switchTab(navDestination: D)
+    fun <S : NavSection> switchTo(section: KClass<S>)
 
-    /**
-     * Navigate up in the navigation stack.
-     */
     fun navigateUp()
 
-    /**
-     * Pop the back stack to [navDestination] (inclusive or not).
-     * If [navDestination] is null, pops one.
-     */
     fun <D : NavDestination> popBackTo(
-        navDestination: D? = null,
+        navDestination: D?,
         inclusive: Boolean = false
     )
+}
+
+/**
+ * Reified helper to switch by section type.
+ *
+ * ```kotlin
+ * navigation.switchTo<HomeSection>()
+ * navigation.switchTo<AuthSection>()
+ * ```
+ */
+inline fun <reified S : NavSection> Navigation.switchTo() {
+    switchTo(S::class)
 }

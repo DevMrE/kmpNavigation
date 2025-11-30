@@ -9,7 +9,7 @@ annotation class NavigationDsl
 @NavigationDsl
 class TypedGraphBuilder @PublishedApi internal constructor(
     @PublishedApi internal val registerScreen: (KClass<out NavDestination>, @Composable (NavDestination) -> Unit) -> Unit,
-    @PublishedApi internal val graphPath: List<KClass<out Section>> = emptyList()
+    @PublishedApi internal val graphPath: List<KClass<out NavSection>> = emptyList()
 ) {
 
     fun screen(
@@ -19,7 +19,7 @@ class TypedGraphBuilder @PublishedApi internal constructor(
         registerScreen(destination, content)
     }
 
-    inline fun <reified G : Section> section(
+    inline fun <reified G : NavSection> section(
         noinline builder: TypedGraphBuilder.() -> Unit
     ) {
         val nestedPath = graphPath + G::class
