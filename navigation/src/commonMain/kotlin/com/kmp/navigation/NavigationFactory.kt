@@ -1,6 +1,5 @@
 package com.kmp.navigation
 
-import androidx.compose.runtime.Composable
 import com.kmp.navigation.compose.NavigationImpl
 
 /**

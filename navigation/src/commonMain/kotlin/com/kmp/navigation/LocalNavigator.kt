@@ -1,9 +1,8 @@
 package com.kmp.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.remember
-import org.koin.mp.KoinPlatform.getKoin
+import androidx.compose.runtime.staticCompositionLocalOf
 import com.kmp.navigation.compose.RegisterNavigation
 import org.koin.compose.koinInject
 
