@@ -1,6 +1,6 @@
 package com.kmp.navigation
 
-import com.kmp.navigation.compose.NavigationController
+import com.kmp.navigation.NavigationController
 
 /**
  * Factory that creates the default [Navigation] implementation.

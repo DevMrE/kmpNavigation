@@ -1,9 +1,5 @@
-package com.kmp.navigation.compose
+package com.kmp.navigation
 
-import com.kmp.navigation.NavDestination
-import com.kmp.navigation.NavOptions
-import com.kmp.navigation.NavSection
-import com.kmp.navigation.Navigation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,7 +10,7 @@ import kotlin.reflect.KClass
  * section-aware switching.
  *
  * * [navigateTo] pushes destinations on a global stack.
- * * [switchTo] uses "last screen per section" to decide where to go.
+ * * [switchTo] uses "last screen per section" + configured root to decide where to go.
  * * [navigateUp] always goes to the previously shown screen, even if it
  *   belongs to a different section.
  *
@@ -22,7 +18,7 @@ import kotlin.reflect.KClass
  *
  * 1. HomeSection - MovieScreenDestination
  * 2. navigateTo(SeriesScreenDestination)    -> HomeSection - Series
- * 3. switchTo<AuthSection>()                -> AuthSection - Login
+ * 3. switchTo(AuthSection)                  -> AuthSection - Login
  * 4. navigateUp()                           -> HomeSection - Series
  */
 class NavigationController : Navigation {
@@ -48,6 +44,10 @@ class NavigationController : Navigation {
     private var destinationSections: Map<KClass<out NavDestination>, KClass<out NavSection>> =
         emptyMap()
 
+    // section type -> configured root destination instance
+    private var sectionRoots: Map<KClass<out NavSection>, NavDestination> =
+        emptyMap()
+
     // section type -> last visited destination of that section
     private val lastDestinationPerSection =
         mutableMapOf<KClass<out NavSection>, NavDestination>()
@@ -58,9 +58,11 @@ class NavigationController : Navigation {
      * Called by the navigation graph builder after the DSL has been evaluated.
      */
     internal fun configureSections(
-        destinationToSection: Map<KClass<out NavDestination>, KClass<out NavSection>>
+        destinationToSection: Map<KClass<out NavDestination>, KClass<out NavSection>>,
+        sectionRoots: Map<KClass<out NavSection>, NavDestination>
     ) {
-        destinationSections = destinationToSection
+        this.destinationSections = destinationToSection
+        this.sectionRoots = sectionRoots
         // we do not touch the current back stack here – this is metadata only
     }
 
@@ -122,16 +124,18 @@ class NavigationController : Navigation {
         updateState()
     }
 
-    override fun <S : NavSection> switchTo(section: KClass<S>) {
-        val sectionKey: KClass<out NavSection> = section
+    override fun switchTo(section: NavSection) {
+        val sectionKey: KClass<out NavSection> = section::class
 
         // 1) Look up last visited destination of this section
-        val target = lastDestinationPerSection[sectionKey] ?: run {
-            // No last destination for this section yet -> nothing to do.
-            // First navigation into the section should be done via navigateTo(...).
-            updateState()
-            return
-        }
+        val target = lastDestinationPerSection[sectionKey]
+        // 2) fall back to configured root
+            ?: sectionRoots[sectionKey]
+            // 3) if we really have nothing, do nothing
+            ?: run {
+                updateState()
+                return
+            }
 
         val current = backStack.lastOrNull()
         if (current == target) {
@@ -140,7 +144,7 @@ class NavigationController : Navigation {
             return
         }
 
-        // 2) Push target as a new history entry
+        // 4) Push target as a new history entry
         backStack += target
         updateState()
     }

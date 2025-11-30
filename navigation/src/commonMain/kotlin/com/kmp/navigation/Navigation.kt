@@ -1,7 +1,5 @@
 package com.kmp.navigation
 
-import kotlin.reflect.KClass
-
 /**
  * Platform-agnostic navigation API used by both ViewModels and Compose.
  *
@@ -17,7 +15,7 @@ import kotlin.reflect.KClass
  *     }
  *
  *     fun onSettingsClicked() {
- *         navigation.switchTo<SettingsSection>()
+ *         navigation.switchTo(SettingsSection)
  *     }
  * }
  * ```
@@ -45,15 +43,15 @@ interface Navigation {
      *
      * The implementation will:
      * * Look up the last visited destination of that section, if any.
-     * * If none exists yet -> do nothing.
-     * * Otherwise push that destination as a new entry on the global back stack.
+     * * Otherwise fall back to the configured root destination of that section.
+     * * Push that destination as a new entry on the global back stack.
      *
      * ```kotlin
-     * navigation.switchTo<HomeSection>()
-     * navigation.switchTo<SettingsSection>()
+     * navigation.switchTo(HomeSection)
+     * navigation.switchTo(SettingsSection)
      * ```
      */
-    fun <S : NavSection> switchTo(section: KClass<S>)
+    fun switchTo(section: NavSection)
 
     /**
      * Pop a single entry from the global back stack.
@@ -70,21 +68,13 @@ interface Navigation {
      * Pop entries from the global back stack until [navDestination] is reached.
      *
      * If [navDestination] is null, this behaves like [navigateUp].
+     *
+     * ```kotlin
+     * navigation.popBackTo(HomeScreenDestination, inclusive = false)
+     * ```
      */
     fun <D : NavDestination> popBackTo(
         navDestination: D?,
         inclusive: Boolean = false
     )
-}
-
-/**
- * Reified helper to switch to a section by type.
- *
- * ```kotlin
- * navigation.switchTo<HomeSection>()
- * navigation.switchTo<AuthSection>()
- * ```
- */
-inline fun <reified S : NavSection> Navigation.switchTo() {
-    switchTo(S::class)
 }

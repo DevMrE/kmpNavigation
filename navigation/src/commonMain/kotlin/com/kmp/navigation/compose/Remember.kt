@@ -20,7 +20,7 @@ import com.kmp.navigation.Navigation
  *
  *     NavigationBarItem(
  *         selected = ...,
- *         onClick = { navigation.switchTo<HomeSection>() },
+ *         onClick = { navigation.switchTo(HomeSection) },
  *         icon = { /* ... */ }
  *     )
  * }

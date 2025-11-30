@@ -12,7 +12,7 @@ import com.kmp.navigation.NavigationGraph
 /**
  * Renders the current navigation destination using the registered screens.
  *
- * It reads the current [NavDestination] from [GlobalNavigation.controller.state]
+ * It reads the current [NavDestination] from [GlobalNavigation]
  * and looks up the matching Composable in [NavigationGraph].
  *
  * ```kotlin

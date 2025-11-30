@@ -1,6 +1,8 @@
 package com.kmp.navigation
 
 import androidx.compose.runtime.Composable
+import com.kmp.navigation.GlobalNavigation.controller
+import com.kmp.navigation.GlobalNavigation.navigation
 import kotlin.reflect.KClass
 
 /**
@@ -14,6 +16,9 @@ object NavigationGraph {
 
     private val destinationSections =
         mutableMapOf<KClass<out NavDestination>, KClass<out NavSection>>()
+
+    private val sectionRoots =
+        mutableMapOf<KClass<out NavSection>, NavDestination>()
 
     private var configured: Boolean = false
 
@@ -31,12 +36,12 @@ object NavigationGraph {
      * ```kotlin
      * fun registerAppNavigation() {
      *     registerNavigation(startDestination = MovieScreenDestination) {
-     *         section<HomeSection, MovieScreenDestination> {
+     *         section<HomeSection>(root = MovieScreenDestination) {
      *             screen<MovieScreenDestination> { MovieScreen() }
      *             screen<SeriesScreenDestination> { SeriesScreen() }
      *         }
      *
-     *         section<SettingsSection, SettingsScreenDestination> {
+     *         section<SettingsSection>(root = SettingsScreenDestination) {
      *             screen<SettingsScreenDestination> { SettingsScreen() }
      *         }
      *     }
@@ -49,6 +54,7 @@ object NavigationGraph {
     ) {
         screens.clear()
         destinationSections.clear()
+        sectionRoots.clear()
 
         val dsl = RegisterNavigationBuilder(
             registerScreen = { key, screen ->
@@ -58,21 +64,24 @@ object NavigationGraph {
             },
             registerDestinationSection = { dest, section ->
                 destinationSections[dest] = section
+            },
+            registerSectionRoot = { section, root ->
+                sectionRoots[section] = root
             }
         )
         dsl.builder()
 
         configured = true
 
-        // Inform the NavigationController about section mapping
-        GlobalNavigation.controller.configureSections(
-            destinationToSection = destinationSections.toMap()
+        // Inform the NavigationController about section mapping & roots
+        controller.configureSections(
+            destinationToSection = destinationSections.toMap(),
+            sectionRoots = sectionRoots.toMap()
         )
 
         // Set initial destination once
-        val controller = GlobalNavigation.controller
         if (controller.state.value.currentDestination == null) {
-            GlobalNavigation.navigation.navigateTo(startDestination) {
+            navigation.navigateTo(startDestination) {
                 clearStack()
             }
         }

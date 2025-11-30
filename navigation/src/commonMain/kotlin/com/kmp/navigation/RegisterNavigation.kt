@@ -9,12 +9,12 @@ package com.kmp.navigation
  * ```kotlin
  * fun registerAppNavigation() {
  *     registerNavigation(startDestination = MovieScreenDestination) {
- *         section<HomeSection, MovieScreenDestination> {
+ *         section<HomeSection>(root = MovieScreenDestination) {
  *             screen<MovieScreenDestination> { MovieScreen() }
  *             screen<SeriesScreenDestination> { SeriesScreen() }
  *         }
  *
- *         section<SettingsSection, SettingsScreenDestination> {
+ *         section<SettingsSection>(root = SettingsScreenDestination) {
  *             screen<SettingsScreenDestination> { SettingsScreen() }
  *         }
  *     }

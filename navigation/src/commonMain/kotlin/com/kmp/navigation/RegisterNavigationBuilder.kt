@@ -4,9 +4,24 @@ import androidx.compose.runtime.Composable
 import kotlin.reflect.KClass
 
 /**
- * DSL marker to avoid mixing nested builders accidentally.
+ * Top-level DSL builder used by [registerNavigation].
  *
- * The annotation itself is declared once in [NavigationDsl] and reused here.
+ * It lets you declare type-safe sections and screens:
+ *
+ * ```kotlin
+ * registerNavigation(
+ *     startDestination = MovieScreenDestination
+ * ) {
+ *     section<HomeSection>(root = MovieScreenDestination) {
+ *         screen<MovieScreenDestination> { MovieScreen() }
+ *         screen<SeriesScreenDestination> { SeriesScreen() }
+ *     }
+ *
+ *     section<SettingsSection>(root = SettingsScreenDestination) {
+ *         screen<SettingsScreenDestination> { SettingsScreen() }
+ *     }
+ * }
+ * ```
  */
 @NavigationDsl
 class RegisterNavigationBuilder @PublishedApi internal constructor(
@@ -17,6 +32,10 @@ class RegisterNavigationBuilder @PublishedApi internal constructor(
     @PublishedApi internal val registerDestinationSection: (
         KClass<out NavDestination>,
         KClass<out NavSection>
+    ) -> Unit,
+    @PublishedApi internal val registerSectionRoot: (
+        KClass<out NavSection>,
+        NavDestination
     ) -> Unit
 ) {
 
@@ -24,29 +43,23 @@ class RegisterNavigationBuilder @PublishedApi internal constructor(
      * Declare a new navigation section.
      *
      * @param S Section type implementing [NavSection].
-     * @param Root Root destination type of this section (for documentation / clarity).
+     * @param root Root destination instance of this section.
      *
      * ```kotlin
-     * registerNavigation(
-     *     startDestination = MovieScreenDestination
-     * ) {
-     *     section<HomeSection, MovieScreenDestination> {
-     *         screen<MovieScreenDestination> { MovieScreen() }
-     *         screen<SeriesScreenDestination> { SeriesScreen() }
-     *     }
-     *
-     *     section<SettingsSection, SettingsScreenDestination> {
-     *         screen<SettingsScreenDestination> { SettingsScreen() }
-     *     }
+     * section<HomeSection>(root = MovieScreenDestination) {
+     *     screen<MovieScreenDestination> { MovieScreen() }
+     *     screen<SeriesScreenDestination> { SeriesScreen() }
      * }
      * ```
      */
-    inline fun <reified S : NavSection, reified Root : NavDestination> section(
-        noinline builder: SectionBuilder<S, Root>.() -> Unit
+    inline fun <reified S : NavSection> section(
+        root: NavDestination,
+        noinline builder: SectionBuilder<S>.() -> Unit
     ) {
+        registerSectionRoot(S::class, root)
+
         val sectionBuilder = SectionBuilder(
             sectionKey = S::class,
-            rootKey = Root::class,
             registerScreen = registerScreen,
             registerDestinationSection = registerDestinationSection
         )
@@ -58,16 +71,15 @@ class RegisterNavigationBuilder @PublishedApi internal constructor(
  * Builder that registers all screens belonging to a section.
  *
  * ```kotlin
- * section<HomeSection, MovieScreenDestination> {
+ * section<HomeSection>(root = MovieScreenDestination) {
  *     screen<MovieScreenDestination> { MovieScreen() }
  *     screen<SeriesScreenDestination> { SeriesScreen() }
  * }
  * ```
  */
 @NavigationDsl
-class SectionBuilder<S : NavSection, Root : NavDestination> @PublishedApi internal constructor(
+class SectionBuilder<S : NavSection> @PublishedApi internal constructor(
     @PublishedApi internal val sectionKey: KClass<S>,
-    @PublishedApi internal val rootKey: KClass<Root>,
     @PublishedApi internal val registerScreen: (
         KClass<out NavDestination>,
         @Composable (NavDestination) -> Unit
@@ -82,7 +94,7 @@ class SectionBuilder<S : NavSection, Root : NavDestination> @PublishedApi intern
      * Register a screen for destination type [D].
      *
      * ```kotlin
-     * section<HomeSection, MovieScreenDestination> {
+     * section<HomeSection>(root = MovieScreenDestination) {
      *     screen<MovieScreenDestination> { MovieScreen() }
      *     screen<SeriesScreenDestination> { SeriesScreen() }
      * }
