@@ -3,9 +3,6 @@ package com.kmp.navigation
 import androidx.compose.runtime.Composable
 import kotlin.reflect.KClass
 
-@DslMarker
-annotation class NavigationDsl
-
 @NavigationDsl
 class TypedGraphBuilder @PublishedApi internal constructor(
     @PublishedApi internal val registerScreen: (KClass<out NavDestination>, @Composable (NavDestination) -> Unit) -> Unit,
