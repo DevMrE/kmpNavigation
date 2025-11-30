@@ -1,11 +1,32 @@
 package com.kmp.navigation
 
-import androidx.compose.runtime.Composable
-import com.kmp.navigation.compose.NavigationImpl
+import com.kmp.navigation.compose.NavigationController
 
 /**
- * Factory, um die Standard-Implementierung zu kapseln.
+ * Factory that creates the default [Navigation] implementation.
+ *
+ * Use this when you do not rely on a DI container, or inside your DI
+ * configuration to provide a singleton navigation instance.
+ *
+ * ```kotlin
+ * // Without DI – create a navigation instance manually
+ * val navigation: Navigation = NavigationFactory.create()
+ *
+ * // With Koin – provide a singleton
+ * val navigationModule = module {
+ *     single<Navigation> { NavigationFactory.create() }
+ * }
+ * ```
  */
 object NavigationFactory {
-    fun create(): Navigation = NavigationImpl
+
+    /**
+     * Create a new [Navigation] instance backed by [NavigationController].
+     *
+     * ```kotlin
+     * val navigation: Navigation = NavigationFactory.create()
+     * navigation.navigateTo(HomeScreenDestination)
+     * ```
+     */
+    fun create(): Navigation = NavigationController
 }
