@@ -7,7 +7,7 @@ import kotlin.reflect.KClass
 /**
  * Global registry mapping [NavDestination] types to their composable content.
  *
- * It is configured once via [configureNavigationGraph] / [RegisterNavigation].
+ * It is configured once via [configureNavigationGraph] / [registerNavigation].
  */
 object NavigationGraph {
 

@@ -2,7 +2,6 @@ package com.kmp.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
-import com.kmp.navigation.compose.registerNavigation
 import com.kmp.navigation.compose.NavigationContent
 import kotlin.reflect.KClass
 

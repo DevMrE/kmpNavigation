@@ -1,7 +1,6 @@
-package com.kmp.navigation.compose
+package com.kmp.navigation
 
-import com.kmp.navigation.NavDestination
-import com.kmp.navigation.NavigationGraph
+import com.kmp.navigation.compose.RegisterNavigationBuilder
 
 /**
  * Convenience alias for [NavigationGraph.configureNavigationGraph].

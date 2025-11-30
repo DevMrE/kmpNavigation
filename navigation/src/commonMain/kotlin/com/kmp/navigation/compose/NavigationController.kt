@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlin.reflect.KClass
-import com.kmp.navigation.rememberNavDestination
 
 /**
  * Default implementation of [Navigation] used by the library.
@@ -47,14 +46,14 @@ import com.kmp.navigation.rememberNavDestination
  * }
  * ```
  */
-object NavigationController : Navigation {
+class NavigationController : Navigation {
 
     /**
      * Snapshot of the current navigation state.
      *
      * You rarely need this directly. The compose helpers
      * [rememberNavDestination] and
-     * [NavigationHost] consume it for you.
+     * [NavigationContent] consume it for you.
      */
     data class State(
         /** The currently visible destination (top of the active tab stack). */
