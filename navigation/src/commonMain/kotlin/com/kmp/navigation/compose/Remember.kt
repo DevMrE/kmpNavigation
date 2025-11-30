@@ -8,7 +8,6 @@ import com.kmp.navigation.GlobalNavigation
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.NavSection
 import com.kmp.navigation.Navigation
-import kotlin.reflect.KClass
 
 /**
  * Returns the singleton [Navigation] instance used by the library.
@@ -72,10 +71,9 @@ fun rememberNavDestination(
 }
 
 /**
- * Observes the current navigation section as a [NavSection] singleton instance.
+ * Observes the current navigation section as a concrete [NavSection] instance.
  *
- * This assumes that all [NavSection] implementations are declared as Kotlin
- * `object` (or `data object`), for example:
+ * This assumes that your sections are implemented as singletons, for example:
  *
  * ```kotlin
  * @Serializable
@@ -115,16 +113,11 @@ fun rememberNavSection(
 ): NavSection {
     val state by GlobalNavigation.controller.state.collectAsState()
 
-    // currentSection in the controller state is a KClass<out NavSection>?
-    val currentClass: KClass<out NavSection>? = state.currentSection
-    val instance: NavSection? = currentClass as? NavSection
-
-    return instance
+    return state.currentSection
         ?: initialSection
         ?: error(
             "No current NavSection available and no initialSection provided. " +
-                    "Also could not get objectInstance from currentSection KClass. " +
-                    "Make sure your NavSection implementations are Kotlin object singletons, " +
-                    "e.g. `data object HomeSection : NavSection`."
+                    "Make sure you configured the navigation graph and start destination " +
+                    "before calling rememberNavSection()."
         )
 }

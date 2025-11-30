@@ -12,15 +12,17 @@ object NavigationGraph {
     private val screens =
         mutableMapOf<KClass<out NavDestination>, @Composable (NavDestination) -> Unit>()
 
+    // destination type -> section instance
     private val destinationSections =
-        mutableMapOf<KClass<out NavDestination>, KClass<out NavSection>>()
+        mutableMapOf<KClass<out NavDestination>, NavSection>()
 
+    // section instance -> root destination instance
     private val sectionRoots =
-        mutableMapOf<KClass<out NavSection>, NavDestination>()
+        mutableMapOf<NavSection, NavDestination>()
 
-    // section type -> position index (used for swipe direction)
+    // section instance -> position index (used for swipe direction)
     private val sectionIndices =
-        mutableMapOf<KClass<out NavSection>, Int>()
+        mutableMapOf<NavSection, Int>()
 
     private var configured: Boolean = false
 
@@ -38,12 +40,18 @@ object NavigationGraph {
      * ```kotlin
      * fun registerAppNavigation() {
      *     registerNavigation(startDestination = MovieScreenDestination) {
-     *         section<HomeSection>(root = MovieScreenDestination) {
+     *         section(
+     *             section = HomeSection,
+     *             root = MovieScreenDestination
+     *         ) {
      *             screen<MovieScreenDestination> { MovieScreen() }
      *             screen<SeriesScreenDestination> { SeriesScreen() }
      *         }
      *
-     *         section<SettingsSection>(root = SettingsScreenDestination) {
+     *         section(
+     *             section = SettingsSection,
+     *             root = SettingsScreenDestination
+     *         ) {
      *             screen<SettingsScreenDestination> { SettingsScreen() }
      *         }
      *     }
@@ -64,11 +72,11 @@ object NavigationGraph {
         val dsl = RegisterNavigationBuilder(
             registerScreen = { key, screen ->
                 if (screens.put(key, screen) != null) {
-                    error("Destination $key is already registered.")
+                    error("Destination ${key.simpleName} is already registered.")
                 }
             },
-            registerDestinationSection = { dest, section ->
-                destinationSections[dest] = section
+            registerDestinationSection = { destKey, section ->
+                destinationSections[destKey] = section
             },
             registerSectionRoot = { section, root ->
                 sectionRoots[section] = root
@@ -104,10 +112,10 @@ object NavigationGraph {
      * Returns the position index of the section that the given [destination] belongs to,
      * or `null` if the destination is not associated with any section.
      *
-     * The index is assigned in declaration order of `section<...>()` inside the DSL.
+     * The index is assigned in declaration order of `section(...)` inside the DSL.
      */
     internal fun sectionIndexFor(destination: NavDestination): Int? {
-        val sectionClass = destinationSections[destination::class] ?: return null
-        return sectionIndices[sectionClass]
+        val section = destinationSections[destination::class] ?: return null
+        return sectionIndices[section]
     }
 }

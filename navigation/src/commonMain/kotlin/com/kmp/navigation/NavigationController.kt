@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlin.reflect.KClass
 
 /**
- * Navigation implementation with a **single global back stack** and
+ * Navigation implementation with a single global back stack and
  * section-aware switching.
  *
  * * [navigateTo] pushes destinations on a global stack.
@@ -27,11 +27,12 @@ class NavigationController : Navigation {
      * Snapshot of the current navigation state.
      *
      * You usually do not consume this directly. Compose helpers
-     * (rememberNavDestination, NavigationContent) wrap it for you.
+     * (rememberNavDestination, rememberNavSection, NavigationContent)
+     * wrap it for you.
      */
     data class State(
         val currentDestination: NavDestination? = null,
-        val currentSection: KClass<out NavSection>? = null,
+        val currentSection: NavSection? = null,
         val backStack: List<NavDestination> = emptyList(),
         val lastEvent: NavigationEvent = NavigationEvent.Idle
     )
@@ -41,17 +42,17 @@ class NavigationController : Navigation {
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
 
-    // destination type -> section type
-    private var destinationSections: Map<KClass<out NavDestination>, KClass<out NavSection>> =
+    // destination type -> section instance
+    private var destinationSections: Map<KClass<out NavDestination>, NavSection> =
         emptyMap()
 
-    // section type -> configured root destination instance
-    private var sectionRoots: Map<KClass<out NavSection>, NavDestination> =
+    // section instance -> configured root destination instance
+    private var sectionRoots: Map<NavSection, NavDestination> =
         emptyMap()
 
-    // section type -> last visited destination of that section
+    // section instance -> last visited destination of that section
     private val lastDestinationPerSection =
-        mutableMapOf<KClass<out NavSection>, NavDestination>()
+        mutableMapOf<NavSection, NavDestination>()
 
     // last operation that changed the back stack
     private var lastEvent: NavigationEvent = NavigationEvent.Idle
@@ -62,15 +63,15 @@ class NavigationController : Navigation {
      * Called by the navigation graph builder after the DSL has been evaluated.
      */
     internal fun configureSections(
-        destinationToSection: Map<KClass<out NavDestination>, KClass<out NavSection>>,
-        sectionRoots: Map<KClass<out NavSection>, NavDestination>
+        destinationToSection: Map<KClass<out NavDestination>, NavSection>,
+        sectionRoots: Map<NavSection, NavDestination>
     ) {
         this.destinationSections = destinationToSection
         this.sectionRoots = sectionRoots
         // we do not touch the current back stack here – this is metadata only
     }
 
-    private fun sectionOf(destination: NavDestination): KClass<out NavSection>? =
+    private fun sectionOf(destination: NavDestination): NavSection? =
         destinationSections[destination::class]
 
     private fun updateState() {
@@ -134,12 +135,10 @@ class NavigationController : Navigation {
     override fun switchTo(section: NavSection) {
         lastEvent = NavigationEvent.SwitchTo
 
-        val sectionKey: KClass<out NavSection> = section::class
-
         // 1) Look up last visited destination of this section
-        val target = lastDestinationPerSection[sectionKey]
+        val target = lastDestinationPerSection[section]
         // 2) fall back to configured root
-            ?: sectionRoots[sectionKey]
+            ?: sectionRoots[section]
             // 3) if we really have nothing, do nothing
             ?: run {
                 updateState()
