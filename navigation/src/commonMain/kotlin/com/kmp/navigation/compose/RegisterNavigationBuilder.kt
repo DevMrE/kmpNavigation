@@ -3,35 +3,23 @@ package com.kmp.navigation.compose
 import androidx.compose.runtime.Composable
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.Section
+import com.kmp.navigation.NavigationGraph
 import kotlin.reflect.KClass
 
-/**
- * DSL marker to avoid mixing navigation builders accidentally.
- */
 @DslMarker
 annotation class NavigationDsl
 
 /**
- * Top-level DSL builder used by [RegisterNavigation].
- *
- * It lets you declare type-safe "sections" (graphs) and screens:
+ * Top-level DSL builder used by [NavigationGraph.configureNavigationGraph].
  *
  * ```kotlin
- * RegisterNavigation(
- *     startDestination = HomeScreenDestination,
- *     builder = {
- *         section<HomeSection, HomeScreenDestination> {
- *             screen<HomeScreenDestination> { HomeScreen() }
- *             screen<SettingsScreenDestination> { SettingsScreen() }
- *         }
- *
- *         section<AuthSection, LoginDestination> {
- *             screen<LoginDestination> { LoginScreen() }
- *             screen<RegisterDestination> { RegisterScreen() }
- *         }
- *     }
+ * NavigationGraph.configureNavigationGraph(
+ *     startDestination = HomeScreenDestination
  * ) {
- *     NavigationHost()
+ *     section<HomeSection, MovieScreenDestination> {
+ *         screen<MovieScreenDestination> { MovieScreen() }
+ *         screen<SeriesScreenDestination> { SeriesScreen() }
+ *     }
  * }
  * ```
  */
@@ -41,15 +29,14 @@ class RegisterNavigationBuilder @PublishedApi internal constructor(
 ) {
 
     /**
-     * Declare a new navigation section.
+     * Declare a new typed section (graph).
      *
      * @param S Section type implementing [Section].
-     * @param Root Root destination of this section. This is a compile-time hint only.
+     * @param Root Root destination of this section.
      *
      * ```kotlin
-     * section<HomeSection, HomeScreenDestination> {
-     *     screen<HomeScreenDestination> { HomeScreen() }
-     *     screen<SettingsScreenDestination> { SettingsScreen() }
+     * section<HomeSection, MovieScreenDestination> {
+     *     screen<MovieScreenDestination> { MovieScreen() }
      * }
      * ```
      */
@@ -67,9 +54,6 @@ class RegisterNavigationBuilder @PublishedApi internal constructor(
 
 /**
  * Builder that registers all screens belonging to a section.
- *
- * The section itself ([S]) and the root destination ([Root]) are used only for type safety
- * and documentation. Routing is still based on concrete [NavDestination] types.
  */
 @NavigationDsl
 class SectionBuilder<S : Section, Root : NavDestination> @PublishedApi internal constructor(
@@ -79,14 +63,12 @@ class SectionBuilder<S : Section, Root : NavDestination> @PublishedApi internal 
 ) {
 
     /**
-     * Register a screen Composable for the given [NavDestination] type [D].
+     * Register a screen for [D].
      *
      * ```kotlin
-     * section<HomeSection, HomeScreenDestination> {
-     *     screen<HomeScreenDestination> { HomeScreen() }
-     *     screen<DetailsScreenDestination> { destination ->
-     *         DetailsScreen(id = destination.id)
-     *     }
+     * section<HomeSection, MovieScreenDestination> {
+     *     screen<MovieScreenDestination> { MovieScreen() }
+     *     screen<SeriesScreenDestination> { SeriesScreen() }
      * }
      * ```
      */
@@ -95,8 +77,7 @@ class SectionBuilder<S : Section, Root : NavDestination> @PublishedApi internal 
     ) {
         val destKey = D::class
         registerScreen(destKey) { dest ->
-            @Suppress("UNCHECKED_CAST")
-            content(dest as D)
+            @Suppress("UNCHECKED_CAST") content(dest as D)
         }
     }
 }

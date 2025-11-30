@@ -28,5 +28,5 @@ object NavigationFactory {
      * navigation.navigateTo(HomeScreenDestination)
      * ```
      */
-    fun create(): Navigation = NavigationController
+    fun create(): Navigation = NavigationController()
 }
