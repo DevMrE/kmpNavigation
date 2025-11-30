@@ -64,30 +64,41 @@ fun rememberNavDestination(
 
     return state.currentDestination
         ?: initialDestination
-        ?: error("No current NavDestination available and no initialDestination provided.")
+        ?: error(
+            "No current NavDestination available and no initialDestination provided. " +
+                    "Make sure you configured the navigation graph and start destination " +
+                    "before calling rememberNavDestination()."
+        )
 }
 
 /**
- * Observes the current navigation section as a [KClass] of [NavSection].
+ * Observes the current navigation section as a [NavSection] singleton instance.
  *
- * This is useful when your UI logic depends on the active section rather
- * than the concrete screen, for example in bottom bars:
+ * This assumes that all [NavSection] implementations are declared as Kotlin
+ * `object` (or `data object`), for example:
+ *
+ * ```kotlin
+ * @Serializable
+ * data object HomeSection : NavSection
+ * ```
+ *
+ * Usage in a bottom bar:
  *
  * ```kotlin
  * @Composable
  * fun BottomBarComponent() {
  *     val navigation = rememberNavigation()
- *     val currentSection = rememberNavSection()
+ *     val section = rememberNavSection(initialSection = HomeSection)
  *
  *     NavigationBar {
  *         NavigationBarItem(
- *             selected = currentSection == HomeSection::class,
+ *             selected = section == HomeSection,
  *             onClick = { navigation.switchTo(HomeSection) },
  *             icon = { /* ... */ }
  *         )
  *
  *         NavigationBarItem(
- *             selected = currentSection == SettingsSection::class,
+ *             selected = section == SettingsSection,
  *             onClick = { navigation.switchTo(SettingsSection) },
  *             icon = { /* ... */ }
  *         )
@@ -96,12 +107,24 @@ fun rememberNavDestination(
  * ```
  *
  * @param initialSection Optional fallback value that is returned when
- * there is no current section yet.
+ * there is no current section yet (for example very early in app startup).
  */
 @Composable
 fun rememberNavSection(
-    initialSection: KClass<out NavSection>? = null
-): KClass<out NavSection>? {
+    initialSection: NavSection? = null
+): NavSection {
     val state by GlobalNavigation.controller.state.collectAsState()
-    return state.currentSection ?: initialSection
+
+    // currentSection in the controller state is a KClass<out NavSection>?
+    val currentClass: KClass<out NavSection>? = state.currentSection
+    val instance: NavSection? = currentClass as? NavSection
+
+    return instance
+        ?: initialSection
+        ?: error(
+            "No current NavSection available and no initialSection provided. " +
+                    "Also could not get objectInstance from currentSection KClass. " +
+                    "Make sure your NavSection implementations are Kotlin object singletons, " +
+                    "e.g. `data object HomeSection : NavSection`."
+        )
 }
