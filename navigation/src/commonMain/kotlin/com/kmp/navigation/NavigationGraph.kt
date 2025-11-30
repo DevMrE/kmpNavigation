@@ -1,12 +1,11 @@
 package com.kmp.navigation
 
 import androidx.compose.runtime.Composable
-import com.kmp.navigation.compose.RegisterNavigationBuilder
 import kotlin.reflect.KClass
 
 /**
  * Global registry mapping [NavDestination] types to their composable content
- * and tracking section membership.
+ * and tracking which section each destination belongs to.
  */
 object NavigationGraph {
 
@@ -18,10 +17,31 @@ object NavigationGraph {
 
     private var configured: Boolean = false
 
+    /**
+     * Returns whether the graph has been configured already.
+     */
     fun isConfigured(): Boolean = configured
 
     /**
      * Configure the navigation graph and set [startDestination] as the initial entry.
+     *
+     * This is a regular Kotlin function and can be called from any initialization
+     * code (e.g. Application.onCreate, before you render your Compose UI).
+     *
+     * ```kotlin
+     * fun registerAppNavigation() {
+     *     registerNavigation(startDestination = MovieScreenDestination) {
+     *         section<HomeSection, MovieScreenDestination> {
+     *             screen<MovieScreenDestination> { MovieScreen() }
+     *             screen<SeriesScreenDestination> { SeriesScreen() }
+     *         }
+     *
+     *         section<SettingsSection, SettingsScreenDestination> {
+     *             screen<SettingsScreenDestination> { SettingsScreen() }
+     *         }
+     *     }
+     * }
+     * ```
      */
     fun configureNavigationGraph(
         startDestination: NavDestination,
@@ -35,12 +55,6 @@ object NavigationGraph {
                 if (screens.put(key, screen) != null) {
                     error("Destination $key is already registered.")
                 }
-            },
-            registerSectionRoot = { section, root ->
-                // we no longer need root KClass here for reflection
-                // but we keep section-root info available if you want to use it later
-                // (e.g. for debugging or tooling)
-                destinationSections[root] = section
             },
             registerDestinationSection = { dest, section ->
                 destinationSections[dest] = section

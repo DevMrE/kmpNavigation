@@ -3,9 +3,10 @@ package com.kmp.navigation
 import com.kmp.navigation.compose.NavigationController
 
 /**
- * Global navigation holder used by the compose helpers and the default DI module.
+ * Global holder for the single [Navigation] instance used by the app.
  *
- * There is exactly one [Navigation] instance for your app by default.
+ * This is the instance that [rememberNavigation] uses and that you can
+ * also expose via DI:
  *
  * ```kotlin
  * // Koin module
@@ -17,18 +18,17 @@ import com.kmp.navigation.compose.NavigationController
 object GlobalNavigation {
 
     /**
-     * The single [Navigation] instance used by this library.
+     * The global [Navigation] instance.
      *
      * ```kotlin
      * val navigation: Navigation = GlobalNavigation.navigation
-     * navigation.navigateTo(HomeScreenDestination)
      * ```
      */
     val navigation: Navigation = NavigationFactory.create()
 
     /**
      * Typed access to the underlying [NavigationController].
-     * Used internally by compose helpers to observe navigation state.
+     * Used internally by compose helpers and the navigation graph.
      */
     internal val controller: NavigationController
         get() = navigation as NavigationController

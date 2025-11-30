@@ -14,8 +14,7 @@ import kotlin.reflect.KClass
  * section-aware switching.
  *
  * * [navigateTo] pushes destinations on a global stack.
- * * [switchTo] uses "last screen per section" + the section root to decide
- *   which destination to show and pushes it as a new history entry.
+ * * [switchTo] uses "last screen per section" to decide where to go.
  * * [navigateUp] always goes to the previously shown screen, even if it
  *   belongs to a different section.
  *
@@ -28,6 +27,12 @@ import kotlin.reflect.KClass
  */
 class NavigationController : Navigation {
 
+    /**
+     * Snapshot of the current navigation state.
+     *
+     * You usually do not consume this directly. Compose helpers
+     * (rememberNavDestination, NavigationContent) wrap it for you.
+     */
     data class State(
         val currentDestination: NavDestination? = null,
         val currentSection: KClass<out NavSection>? = null,
@@ -43,13 +48,9 @@ class NavigationController : Navigation {
     private var destinationSections: Map<KClass<out NavDestination>, KClass<out NavSection>> =
         emptyMap()
 
-    // section type -> root destination type
-    private var sectionRootDestinationClasses: Map<KClass<out NavSection>, KClass<out NavDestination>> =
-        emptyMap()
-
     // section type -> last visited destination of that section
-    private val lastDestinationPerSection: MutableMap<KClass<out NavSection>, NavDestination> =
-        mutableMapOf()
+    private val lastDestinationPerSection =
+        mutableMapOf<KClass<out NavSection>, NavDestination>()
 
     /**
      * Configure section information.
@@ -59,16 +60,12 @@ class NavigationController : Navigation {
     internal fun configureSections(
         destinationToSection: Map<KClass<out NavDestination>, KClass<out NavSection>>
     ) {
-        this.destinationSections = destinationToSection
+        destinationSections = destinationToSection
+        // we do not touch the current back stack here – this is metadata only
     }
 
     private fun sectionOf(destination: NavDestination): KClass<out NavSection>? =
         destinationSections[destination::class]
-
-    private fun rootDestinationOf(section: KClass<out NavSection>): NavDestination? {
-        val rootClass = sectionRootDestinationClasses[section] ?: return null
-        return rootClass as? NavDestination
-    }
 
     private fun updateState() {
         val current = backStack.lastOrNull()
@@ -86,18 +83,16 @@ class NavigationController : Navigation {
     ) {
         val navOptions = NavOptions().apply(options)
 
-        // Handle back stack options (global stack)
+        // Handle back stack options on the global stack
         when (val backstack = navOptions.backstack) {
             is NavOptions.Backstack.None -> Unit
-            is NavOptions.Backstack.Clear -> {
-                backStack.clear()
-            }
+            is NavOptions.Backstack.Clear -> backStack.clear()
             is NavOptions.Backstack.PopTo -> {
                 popToTypeInStack(backStack, backstack.navDestination::class, backstack.inclusive)
             }
         }
 
-        // restoreState: jump back to last destination of same type instead of pushing
+        // restoreState: jump back to the last destination of the same type instead of pushing
         if (navOptions.restoreState) {
             val idx = backStack.indexOfLast { it::class == navDestination::class }
             if (idx >= 0) {
@@ -112,28 +107,31 @@ class NavigationController : Navigation {
         }
 
         val current = backStack.lastOrNull()
-
-        // singleTop: avoid pushing exact same instance
         if (navOptions.singleTop && current == navDestination) {
             updateState()
             return
         }
 
         backStack += navDestination
+
+        // update "last screen per section"
         sectionOf(navDestination)?.let { section ->
             lastDestinationPerSection[section] = navDestination
         }
+
         updateState()
     }
 
     override fun <S : NavSection> switchTo(section: KClass<S>) {
         val sectionKey: KClass<out NavSection> = section
 
-        // 1) Try last visited destination of that section
-        val target = lastDestinationPerSection[sectionKey]
-        // 2) fall back to section root
-            ?: rootDestinationOf(sectionKey)
-            ?: error("No root destination configured for section ${sectionKey.simpleName}.")
+        // 1) Look up last visited destination of this section
+        val target = lastDestinationPerSection[sectionKey] ?: run {
+            // No last destination for this section yet -> nothing to do.
+            // First navigation into the section should be done via navigateTo(...).
+            updateState()
+            return
+        }
 
         val current = backStack.lastOrNull()
         if (current == target) {
@@ -142,10 +140,8 @@ class NavigationController : Navigation {
             return
         }
 
+        // 2) Push target as a new history entry
         backStack += target
-        sectionOf(target)?.let { s ->
-            lastDestinationPerSection[s] = target
-        }
         updateState()
     }
 
@@ -163,6 +159,7 @@ class NavigationController : Navigation {
             navigateUp()
             return
         }
+
         popToTypeInStack(backStack, navDestination::class, inclusive)
         updateState()
     }

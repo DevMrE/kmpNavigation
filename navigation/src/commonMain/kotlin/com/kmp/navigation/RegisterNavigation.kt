@@ -1,26 +1,21 @@
 package com.kmp.navigation
 
-import com.kmp.navigation.compose.RegisterNavigationBuilder
-
 /**
- * Configure the navigation graph with an explicit [startDestination].
+ * Convenience alias for [NavigationGraph.configureNavigationGraph].
  *
- * This is a regular Kotlin function and can be called from anywhere
- * (e.g. Application.onCreate, before you render your Compose UI).
+ * This is **not** a composable. You call it once during app setup to
+ * configure the navigation graph:
  *
  * ```kotlin
- * fun configureNavigation() {
- *     RegisterNavigation(
- *         startDestination = MovieScreenDestination
- *     ) {
+ * fun registerAppNavigation() {
+ *     registerNavigation(startDestination = MovieScreenDestination) {
  *         section<HomeSection, MovieScreenDestination> {
  *             screen<MovieScreenDestination> { MovieScreen() }
  *             screen<SeriesScreenDestination> { SeriesScreen() }
  *         }
  *
- *         section<AuthSection, LoginDestination> {
- *             screen<LoginDestination> { LoginScreen() }
- *             screen<RegisterDestination> { RegisterScreen() }
+ *         section<SettingsSection, SettingsScreenDestination> {
+ *             screen<SettingsScreenDestination> { SettingsScreen() }
  *         }
  *     }
  * }

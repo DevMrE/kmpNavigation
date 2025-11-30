@@ -6,13 +6,12 @@ import androidx.compose.runtime.getValue
 import com.kmp.navigation.GlobalNavigation
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.Navigation
-import com.kmp.navigation.di.navigationModule
 
 /**
  * Returns the global [Navigation] instance.
  *
- * This is the same instance that your ViewModels receive from DI
- * (if you use the provided [navigationModule]).
+ * This is the same instance that your ViewModels receive from DI if you
+ * expose [GlobalNavigation.navigation] as a singleton.
  *
  * ```kotlin
  * @Composable
@@ -21,14 +20,14 @@ import com.kmp.navigation.di.navigationModule
  *
  *     NavigationBarItem(
  *         selected = ...,
- *         onClick = { navigation.navigateTo(HomeScreenDestination) },
- *         icon = { Icon(...) }
+ *         onClick = { navigation.switchTo<HomeSection>() },
+ *         icon = { /* ... */ }
  *     )
  * }
  * ```
  */
 @Composable
-fun rememberNavigation() = GlobalNavigation.navigation
+fun rememberNavigation(): Navigation = GlobalNavigation.navigation
 
 /**
  * Returns the current [NavDestination] from the global navigation state.
@@ -45,9 +44,7 @@ fun rememberNavigation() = GlobalNavigation.navigation
  *         else -> Res.string.app_name
  *     }
  *
- *     TopAppBar(
- *         title = { Text(stringResource(titleRes)) }
- *     )
+ *     TopAppBarContent(title = stringResource(titleRes))
  * }
  * ```
  */
