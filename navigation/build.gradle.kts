@@ -45,6 +45,8 @@ kotlin {
             implementation(libs.composeNavigation)
             implementation(libs.bundles.koin)
             implementation(libs.logger)
+
+            implementation(libs.navigation3)
         }
     }
 }
