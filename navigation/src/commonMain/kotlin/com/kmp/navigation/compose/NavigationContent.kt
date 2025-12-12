@@ -1,6 +1,5 @@
 package com.kmp.navigation.compose
 
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -42,7 +41,6 @@ import com.kmp.navigation.NavigationGraph
  * }
  * ```
  */
-@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun NavigationContent(
     modifier: Modifier = Modifier,
