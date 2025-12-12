@@ -7,7 +7,7 @@ kotlin = "2.2.21"
 koinVersion = "4.1.1"
 loggerVersion = "2.0.8"
 comoseNavigationVersion = "2.9.1"
-cmpNavigation3 = "1.0.0-alpha05"
+cmpNavigation3 = "1.0.0-alpha06"
 
 [libraries]
 kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
@@ -18,7 +18,6 @@ koinCompose = { group = "io.insert-koin", name = "koin-compose", version.ref = "
 logger = { group = "co.touchlab", name = "kermit", version.ref = "loggerVersion" }
 composeNavigation = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "comoseNavigationVersion" }
 navigation3 = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "cmpNavigation3" }
-androidx-lifecycle-nav3 = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "androidx-lifecycle" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
@@ -30,6 +29,6 @@ kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref =
 serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 
 [bundles]
-navigation3 = ["navigation3", "androidx-lifecycle-nav3"]
+navigation3 = ["navigation3"]
 koin = ["koinCore", "koinCompose"]
 lifecycle = ["androidx-lifecycle-viewmodelCompose", "androidx-lifecycle-runtimeCompose"]
