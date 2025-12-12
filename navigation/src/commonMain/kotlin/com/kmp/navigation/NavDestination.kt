@@ -1,5 +1,6 @@
 package com.kmp.navigation
 
+import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 
 /**
@@ -20,4 +21,4 @@ import kotlinx.serialization.Serializable
  * data class DetailScreenDestination(val someParam: Int) : NavDestination
  * ```
  */
-interface NavDestination
+interface NavDestination : NavKey

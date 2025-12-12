@@ -13,11 +13,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.rememberDecoratedNavEntries
+import androidx.navigation3.ui.NavDisplay
 import com.kmp.navigation.GlobalNavigation
 import com.kmp.navigation.NavigationEvent
 import com.kmp.navigation.NavigationGraph
 import com.kmp.navigation.NavDestination
+import kotlin.collections.listOf
 
 /**
  * Renders the current navigation destination using the registered screens
@@ -51,44 +56,21 @@ fun NavigationContent(
 ) {
     val navState by GlobalNavigation.controller.state.collectAsState()
     val current = navState.currentDestination ?: return
-    val lastEvent = navState.lastEvent
+    val backStack = navState.backStack // List<NavDestination>
 
-    AnimatedContent(
-        modifier = modifier,
-        targetState = current,
-        transitionSpec = {
-            // Decide animation type based on lastEvent & section indices
-            val fromIndex: Int? = initialState.let { NavigationGraph.sectionIndexFor(it) }
-            val toIndex: Int? = targetState.let { NavigationGraph.sectionIndexFor(it) }
+    val entryProvider = remember { createEntryProviderWithDsl(NavigationGraph) }
 
-            val isSectionChange =
-                fromIndex != null && toIndex != null && fromIndex != toIndex
-
-            if (lastEvent == NavigationEvent.SwitchTo && isSectionChange) {
-                // Horizontal slide between sections
-                if (toIndex > fromIndex) {
-                    // Going "right": new section has higher index
-                    (slideInHorizontally { fullWidth -> fullWidth } + fadeIn()).togetherWith(
-                        slideOutHorizontally { fullWidth -> -fullWidth } + fadeOut())
-                } else {
-                    // Going "left": new section has lower index
-                    (slideInHorizontally { fullWidth -> -fullWidth } + fadeIn()).togetherWith(
-                        slideOutHorizontally { fullWidth -> fullWidth } + fadeOut())
-                }
-            } else {
-                // Default for navigateTo / back / popBackTo: simple fade
-                fadeIn().togetherWith(fadeOut())
-            }.using(
-                SizeTransform(clip = true)
-            )
-        },
-        label = "NavigationContent"
-    ) { destination: NavDestination ->
-        val screen = NavigationGraph.findScreen(destination)
-            ?: error("No screen registered for destination ${destination::class.simpleName}. Did you call registerNavigation()?")
-
-        Box(modifier = Modifier.fillMaxSize()) {
-            screen(destination)
+    val entries = remember(backStack) {
+        backStack.map { destination ->
+            entryProvider(destination)
         }
     }
+
+    NavDisplay(
+        entries = entries,
+        onBack = {
+            GlobalNavigation.controller.navigateUp()
+        },
+        modifier = modifier
+    )
 }
