@@ -6,29 +6,25 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlin.reflect.KClass
 
 /**
- * Navigation implementation with a single global back stack and
- * section-aware switching.
+ * Navigation-Implementierung mit einem eigenen Backstack pro [NavSection].
  *
- * * [navigateTo] pushes destinations on a global stack.
- * * [switchTo] uses "last screen per section" + configured root to decide where to go.
- * * [navigateUp] always goes to the previously shown screen, even if it
- *   belongs to a different section.
+ * Verhalten (wie bei "multiple back stacks" in Navigation 3 / Bottom Navigation):
  *
- * Example behavior:
- *
- * 1. HomeSection - MovieScreenDestination
- * 2. navigateTo(SeriesScreenDestination)    -> HomeSection - Series
- * 3. switchTo(AuthSection)                  -> AuthSection - Login
- * 4. navigateUp()                           -> HomeSection - Series
+ * - Jede [NavSection] besitzt ihren eigenen Stack von [NavDestination]s.
+ * - [navigateTo] arbeitet immer auf dem Stack der Section, zu der die Destination gehört.
+ * - [switchTo] wechselt nur die aktive Section und stellt deren letzte Destination wieder her,
+ *   ohne andere Stacks zu verändern.
+ * - [navigateUp] poppt ausschließlich innerhalb der aktuell aktiven Section.
  */
 class NavigationController : Navigation {
 
     /**
-     * Snapshot of the current navigation state.
+     * Snapshot des aktuellen Navigationszustands.
      *
-     * You usually do not consume this directly. Compose helpers
-     * (rememberNavDestination, rememberNavSection, NavigationContent)
-     * wrap it for you.
+     * Wird von den Compose-Helfern konsumiert:
+     * - rememberNavDestination
+     * - rememberNavSection
+     * - NavigationContent
      */
     data class State(
         val currentDestination: NavDestination? = null,
@@ -37,30 +33,24 @@ class NavigationController : Navigation {
         val lastEvent: NavigationEvent = NavigationEvent.Idle
     )
 
-    private val backStack = mutableListOf<NavDestination>()
+    // Pro Section ein eigener Backstack
+    private val sectionStacks = mutableMapOf<NavSection, MutableList<NavDestination>>()
 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
 
-    // destination type -> section instance
-    private var destinationSections: Map<KClass<out NavDestination>, NavSection> =
-        emptyMap()
+    // Destination-Typ -> Section
+    private var destinationSections: Map<KClass<out NavDestination>, NavSection> = emptyMap()
 
-    // section instance -> configured root destination instance
-    private var sectionRoots: Map<NavSection, NavDestination> =
-        emptyMap()
+    // Section -> Root-Destination
+    private var sectionRoots: Map<NavSection, NavDestination> = emptyMap()
 
-    // section instance -> last visited destination of that section
-    private val lastDestinationPerSection =
-        mutableMapOf<NavSection, NavDestination>()
-
-    // last operation that changed the back stack
+    // Letzte Operation, die den Backstack verändert hat (für Animationen)
     private var lastEvent: NavigationEvent = NavigationEvent.Idle
 
     /**
-     * Configure section information.
-     *
-     * Called by the navigation graph builder after the DSL has been evaluated.
+     * Wird von [NavigationGraph.configureNavigationGraph] aufgerufen,
+     * nachdem der DSL-Builder ausgeführt wurde.
      */
     internal fun configureSections(
         destinationToSection: Map<KClass<out NavDestination>, NavSection>,
@@ -68,19 +58,27 @@ class NavigationController : Navigation {
     ) {
         this.destinationSections = destinationToSection
         this.sectionRoots = sectionRoots
-        // we do not touch the current back stack here – this is metadata only
+        // Stacks bleiben unverändert – hier konfigurieren wir nur Metadaten.
     }
 
     private fun sectionOf(destination: NavDestination): NavSection? =
         destinationSections[destination::class]
 
-    private fun updateState() {
-        val current = backStack.lastOrNull()
-        val currentSection = current?.let { sectionOf(it) }
+    private fun stackFor(section: NavSection): MutableList<NavDestination> =
+        sectionStacks.getOrPut(section) { mutableListOf() }
+
+    private val currentSection: NavSection?
+        get() = _state.value.currentSection
+
+    private fun updateState(newCurrentSection: NavSection? = currentSection) {
+        val section = newCurrentSection
+        val stack = section?.let { sectionStacks[it] }.orEmpty()
+        val current = stack.lastOrNull()
+
         _state.value = State(
             currentDestination = current,
-            currentSection = currentSection,
-            backStack = backStack.toList(),
+            currentSection = section,
+            backStack = stack.toList(),
             lastEvent = lastEvent
         )
     }
@@ -91,87 +89,101 @@ class NavigationController : Navigation {
     ) {
         lastEvent = NavigationEvent.NavigateTo
 
+        val targetSection = sectionOf(navDestination)
+            ?: error(
+                "No NavSection registered for destination ${navDestination::class.simpleName}. " +
+                        "Did you forget to declare it inside a section{ } block in registerNavigation()?"
+            )
+
         val navOptions = NavOptions().apply(options)
 
-        // Handle back stack options on the global stack
+        // Backstack-Optionen zuerst anwenden
         when (val backstack = navOptions.backstack) {
             is NavOptions.Backstack.None -> Unit
-            is NavOptions.Backstack.Clear -> backStack.clear()
+
+            is NavOptions.Backstack.Clear -> {
+                // Entspricht "alles zurücksetzen", z.B. nach Login
+                sectionStacks.clear()
+            }
+
             is NavOptions.Backstack.PopTo -> {
-                popToTypeInStack(backStack, backstack.navDestination::class, backstack.inclusive)
+                // Pop in dem Stack, dem die Ziel-Destination gehört
+                val sectionForPop =
+                    sectionOf(backstack.navDestination)
+                        ?: targetSection
+
+                val stackForPop = sectionStacks[sectionForPop]
+                if (stackForPop != null) {
+                    popToTypeInStack(
+                        stack = stackForPop,
+                        type = backstack.navDestination::class,
+                        inclusive = backstack.inclusive
+                    )
+                }
             }
         }
 
-        // restoreState: jump back to the last destination of the same type instead of pushing
+        val stack = stackFor(targetSection)
+
+        // restoreState: nicht neu pushen, sondern zum letzten Eintrag gleichen Typs springen
         if (navOptions.restoreState) {
-            val idx = backStack.indexOfLast { it::class == navDestination::class }
+            val idx = stack.indexOfLast { it::class == navDestination::class }
             if (idx >= 0) {
-                backStack.subList(idx + 1, backStack.size).clear()
-                val restored = backStack.last()
-                sectionOf(restored)?.let { section ->
-                    lastDestinationPerSection[section] = restored
-                }
-                updateState()
+                stack.subList(idx + 1, stack.size).clear()
+                updateState(newCurrentSection = targetSection)
                 return
             }
         }
 
-        val current = backStack.lastOrNull()
-        if (navOptions.singleTop && current == navDestination) {
-            updateState()
+        val currentTop = stack.lastOrNull()
+        if (navOptions.singleTop && currentTop == navDestination) {
+            // Schon oben – nichts ändern
+            updateState(newCurrentSection = targetSection)
             return
         }
 
-        backStack += navDestination
-
-        // update "last screen per section"
-        sectionOf(navDestination)?.let { section ->
-            lastDestinationPerSection[section] = navDestination
-        }
-
-        updateState()
+        stack += navDestination
+        updateState(newCurrentSection = targetSection)
     }
 
     override fun switchTo(section: NavSection) {
         lastEvent = NavigationEvent.SwitchTo
 
-        // 1) Look up last visited destination of this section
-        val target = lastDestinationPerSection[section]
-        // 2) fall back to configured root
-            ?: sectionRoots[section]
-            // 3) if we really have nothing, do nothing
-            ?: run {
-                updateState()
-                return
-            }
+        val stack = stackFor(section)
 
-        val current = backStack.lastOrNull()
-        if (current == target) {
-            // Already on that screen – no-op
-            updateState()
-            return
+        if (stack.isEmpty()) {
+            // Erste Aktivierung dieser Section → ihren Root verwenden
+            val root = sectionRoots[section]
+                ?: run {
+                    // Keine Info über diese Section, nichts zu tun
+                    updateState()
+                    return
+                }
+            stack += root
         }
 
-        // 4) Push target as a new history entry
-        backStack += target
-
-        // update last for section
-        sectionOf(target)?.let { s ->
-            lastDestinationPerSection[s] = target
-        }
-
-        updateState()
+        // Nur aktive Section wechseln, andere Stacks bleiben unberührt
+        updateState(newCurrentSection = section)
     }
 
     override fun navigateUp() {
         lastEvent = NavigationEvent.NavigateUp
 
-        if (backStack.size <= 1) {
+        val section = currentSection
+        if (section == null) {
             updateState()
             return
         }
-        backStack.removeLast()
-        updateState()
+
+        val stack = sectionStacks[section]
+        if (stack == null || stack.size <= 1) {
+            // Wir sind auf dem Root dieser Section – hier nichts mehr zu poppen.
+            updateState(newCurrentSection = section)
+            return
+        }
+
+        stack.removeLast()
+        updateState(newCurrentSection = section)
     }
 
     override fun <D : NavDestination> popBackTo(
@@ -185,8 +197,33 @@ class NavigationController : Navigation {
             return
         }
 
-        popToTypeInStack(backStack, navDestination::class, inclusive)
-        updateState()
+        val section = sectionOf(navDestination) ?: currentSection
+        if (section == null) {
+            updateState()
+            return
+        }
+
+        val stack = sectionStacks[section]
+        if (stack == null) {
+            updateState(newCurrentSection = section)
+            return
+        }
+
+        popToTypeInStack(
+            stack = stack,
+            type = navDestination::class,
+            inclusive = inclusive
+        )
+
+        if (stack.isEmpty()) {
+            // Wenn wir alles weggepoppt haben, auf Root der Section zurückfallen
+            val root = sectionRoots[section]
+            if (root != null) {
+                stack += root
+            }
+        }
+
+        updateState(newCurrentSection = section)
     }
 
     private fun popToTypeInStack(
