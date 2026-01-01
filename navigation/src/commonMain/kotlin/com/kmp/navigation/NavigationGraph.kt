@@ -4,8 +4,8 @@ import androidx.compose.runtime.Composable
 import kotlin.reflect.KClass
 
 /**
- * Global registry mapping [NavDestination] types to their composable content
- * and tracking which section each destination belongs to.
+ * Global registry mapping [NavDestination] -> screen content
+ * + graph metadata for nested sections.
  */
 object NavigationGraph {
 
@@ -20,44 +20,22 @@ object NavigationGraph {
     private val sectionRoots =
         mutableMapOf<NavSection, NavDestination>()
 
-    // section instance -> position index (used for swipe direction)
-    private val sectionIndices =
+    // child -> parent (null = root section)
+    private val sectionParents =
+        mutableMapOf<NavSection, NavSection?>()
+
+    // parent -> children (declaration order)
+    private val sectionChildren =
+        mutableMapOf<NavSection, MutableList<NavSection>>()
+
+    // section -> index among siblings (under its parent)
+    private val sectionSiblingIndex =
         mutableMapOf<NavSection, Int>()
 
     private var configured: Boolean = false
 
-    /**
-     * Returns whether the graph has been configured already.
-     */
     fun isConfigured(): Boolean = configured
 
-    /**
-     * Configure the navigation graph and set [startDestination] as the initial entry.
-     *
-     * This is a regular Kotlin function and can be called from any initialization
-     * code (e.g. Application.onCreate, before you render your Compose UI).
-     *
-     * ```kotlin
-     * fun registerAppNavigation() {
-     *     registerNavigation(startDestination = MovieScreenDestination) {
-     *         section(
-     *             section = HomeSection,
-     *             root = MovieScreenDestination
-     *         ) {
-     *             screen<MovieScreenDestination> { MovieScreen() }
-     *             screen<SeriesScreenDestination> { SeriesScreen() }
-     *         }
-     *
-     *         section(
-     *             section = SettingsSection,
-     *             root = SettingsScreenDestination
-     *         ) {
-     *             screen<SettingsScreenDestination> { SettingsScreen() }
-     *         }
-     *     }
-     * }
-     * ```
-     */
     fun configureNavigationGraph(
         startDestination: NavDestination,
         builder: RegisterNavigationBuilder.() -> Unit
@@ -65,9 +43,11 @@ object NavigationGraph {
         screens.clear()
         destinationSections.clear()
         sectionRoots.clear()
-        sectionIndices.clear()
+        sectionParents.clear()
+        sectionChildren.clear()
+        sectionSiblingIndex.clear()
 
-        var nextSectionIndex = 0
+        val nextIndexPerParent = mutableMapOf<NavSection?, Int>()
 
         val dsl = RegisterNavigationBuilder(
             registerScreen = { key, screen ->
@@ -79,23 +59,38 @@ object NavigationGraph {
                 destinationSections[destKey] = section
             },
             registerSectionRoot = { section, root ->
-                sectionRoots[section] = root
-                if (!sectionIndices.containsKey(section)) {
-                    sectionIndices[section] = nextSectionIndex++
+                if (sectionRoots.put(section, root) != null) {
+                    error("Section ${section::class.simpleName} already has a root registered.")
+                }
+            },
+            registerSectionParent = { section, parent ->
+                if (sectionParents.containsKey(section)) {
+                    error("NavSection ${section::class.simpleName} is already registered in the graph.")
+                }
+                sectionParents[section] = parent
+
+                val idx = nextIndexPerParent[parent] ?: 0
+                nextIndexPerParent[parent] = idx + 1
+                sectionSiblingIndex[section] = idx
+
+                if (parent != null) {
+                    sectionChildren.getOrPut(parent) { mutableListOf() }.add(section)
                 }
             }
         )
-        dsl.builder()
 
+        dsl.builder()
         configured = true
 
-        // Inform the NavigationController about section mapping & roots
-        GlobalNavigation.controller.configureSections(
+        GlobalNavigation.controller.configureGraph(
             destinationToSection = destinationSections.toMap(),
-            sectionRoots = sectionRoots.toMap()
+            sectionRoots = sectionRoots.toMap(),
+            sectionParents = sectionParents.toMap(),
+            sectionChildren = sectionChildren.mapValues { it.value.toList() },
+            sectionSiblingIndex = sectionSiblingIndex.toMap()
         )
 
-        // Set initial destination once
+        // set initial destination once
         val controller = GlobalNavigation.controller
         if (controller.state.value.currentDestination == null) {
             GlobalNavigation.navigation.navigateTo(startDestination) {
@@ -104,18 +99,21 @@ object NavigationGraph {
         }
     }
 
-    internal fun findScreen(
-        destination: NavDestination
-    ): (@Composable (NavDestination) -> Unit)? = screens[destination::class]
+    internal fun findScreen(destination: NavDestination): (@Composable (NavDestination) -> Unit)? =
+        screens[destination::class]
 
-    /**
-     * Returns the position index of the section that the given [destination] belongs to,
-     * or `null` if the destination is not associated with any section.
-     *
-     * The index is assigned in declaration order of `section(...)` inside the DSL.
-     */
+    internal fun parentOf(section: NavSection): NavSection? = sectionParents[section]
+
+    internal fun childrenOf(section: NavSection): List<NavSection> = sectionChildren[section].orEmpty()
+
+    internal fun rootSections(): List<NavSection> =
+        sectionParents
+            .filterValues { it == null }
+            .keys
+            .sortedBy { sectionSiblingIndex[it] ?: 0 }
+
     internal fun sectionIndexFor(destination: NavDestination): Int? {
         val section = destinationSections[destination::class] ?: return null
-        return sectionIndices[section]
+        return sectionSiblingIndex[section]
     }
 }

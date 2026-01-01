@@ -27,3 +27,4 @@ fun registerNavigation(
 ) {
     NavigationGraph.configureNavigationGraph(startDestination, builder)
 }
+

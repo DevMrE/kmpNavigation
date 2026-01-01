@@ -9,52 +9,9 @@ import com.kmp.navigation.NavDestination
 import com.kmp.navigation.NavSection
 import com.kmp.navigation.Navigation
 
-/**
- * Returns the singleton [Navigation] instance used by the library.
- *
- * You can inject [Navigation] into view models via DI or use this function
- * directly in composables when passing the instance around would be overkill.
- *
- * ```kotlin
- * @Composable
- * fun BottomBarComponent() {
- *     val navigation = rememberNavigation()
- *
- *     NavigationBarItem(
- *         selected = /* ... */,
- *         onClick = { navigation.switchTo(HomeSection) },
- *         icon = { /* ... */ }
- *     )
- * }
- * ```
- */
 @Composable
-fun rememberNavigation(): Navigation {
-    // GlobalNavigation.navigation is already a singleton, we just
-    // wrap it in remember so the reference is stable for Compose.
-    return remember { GlobalNavigation.navigation }
-}
+fun rememberNavigation(): Navigation = remember { GlobalNavigation.navigation }
 
-/**
- * Observes the current [NavDestination] from the global navigation state.
- *
- * If there is no active destination yet (for example before the first
- * navigation action), [initialDestination] is returned instead.
- *
- * ```kotlin
- * @Composable
- * fun TopAppBarComponent() {
- *     val destination = rememberNavDestination(initialDestination = HomeScreenDestination)
- *
- *     val title = when (destination) {
- *         is SettingsScreenDestination -> stringResource(Res.string.settings_screen_title)
- *         else -> stringResource(Res.string.app_name)
- *     }
- *
- *     MyTopAppBar(title = title)
- * }
- * ```
- */
 @Composable
 fun rememberNavDestination(
     initialDestination: NavDestination? = null
@@ -71,41 +28,8 @@ fun rememberNavDestination(
 }
 
 /**
- * Observes the current navigation section as a concrete [NavSection] instance.
- *
- * This assumes that your sections are implemented as singletons, for example:
- *
- * ```kotlin
- * @Serializable
- * data object HomeSection : NavSection
- * ```
- *
- * Usage in a bottom bar:
- *
- * ```kotlin
- * @Composable
- * fun BottomBarComponent() {
- *     val navigation = rememberNavigation()
- *     val section = rememberNavSection(initialSection = HomeSection)
- *
- *     NavigationBar {
- *         NavigationBarItem(
- *             selected = section == HomeSection,
- *             onClick = { navigation.switchTo(HomeSection) },
- *             icon = { /* ... */ }
- *         )
- *
- *         NavigationBarItem(
- *             selected = section == SettingsSection,
- *             onClick = { navigation.switchTo(SettingsSection) },
- *             icon = { /* ... */ }
- *         )
- *     }
- * }
- * ```
- *
- * @param initialSection Optional fallback value that is returned when
- * there is no current section yet (for example very early in app startup).
+ * Liefert die aktuell sichtbare (deepest) Section.
+ * Bei nested Sections ist das z.B. die aktive Tab-Section.
  */
 @Composable
 fun rememberNavSection(
@@ -120,4 +44,40 @@ fun rememberNavSection(
                     "Make sure you configured the navigation graph and start destination " +
                     "before calling rememberNavSection()."
         )
+}
+
+/**
+ * Root-Section des aktuell aktiven Graphs (z.B. BottomBarNavSection, wenn du so modellierst).
+ */
+@Composable
+fun rememberRootNavSection(
+    initialSection: NavSection? = null
+): NavSection {
+    val state by GlobalNavigation.controller.state.collectAsState()
+
+    return state.rootSection
+        ?: initialSection
+        ?: error(
+            "No root NavSection available and no initialSection provided."
+        )
+}
+
+/**
+ * Aktiver Child einer Parent-Section (für BottomBar/TabBar Auswahl).
+ */
+@Composable
+fun rememberActiveChildSection(
+    parentSection: NavSection,
+    initialChild: NavSection? = null
+): NavSection {
+    val state by GlobalNavigation.controller.state.collectAsState()
+    return state.activeChild[parentSection]
+        ?: initialChild
+        ?: error("No active child for parent ${parentSection::class.simpleName} and no initialChild provided.")
+}
+
+@Composable
+fun rememberNavSectionPath(): List<NavSection> {
+    val state by GlobalNavigation.controller.state.collectAsState()
+    return state.currentPath
 }
