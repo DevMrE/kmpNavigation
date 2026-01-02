@@ -1,5 +1,7 @@
 package com.kmp.navigation
 
+import androidx.compose.runtime.Stable
+
 /**
  * Marker interface for a logical navigation section (e.g. "Home", "Auth", "Settings").
  *
@@ -9,4 +11,5 @@ package com.kmp.navigation
  * object SettingsSection : NavSection
  * ```
  */
+@Stable
 interface NavSection

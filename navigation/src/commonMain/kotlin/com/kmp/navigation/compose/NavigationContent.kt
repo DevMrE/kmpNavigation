@@ -17,6 +17,7 @@ import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.kmp.navigation.GlobalNavigation
@@ -25,14 +26,32 @@ import com.kmp.navigation.NavSection
 import com.kmp.navigation.NavigationGraph
 import com.kmp.navigation.ScreenRole
 
-private val LocalNavSaveableStateHolder =
+private val LocalNaveSavableStateHolder =
     staticCompositionLocalOf<SaveableStateHolder?> { null }
 
 @Stable
-private data class NavSaveableKey(
+private data class NaveSavableKey(
     val section: NavSection,
     val destination: NavDestination
 )
+
+
+internal fun createEntryProvider(): (NavDestination) -> NavEntry<NavDestination> = { destination ->
+    val screen = NavigationGraph.findScreen(destination)
+        ?: error("No screen registered for ${destination::class.simpleName}. Did you call registerNavigation()?")
+
+    // optional: metadata (z.B. role/section index) – wenn du sowas anbietest
+    // val metadata = NavigationGraph.metadataFor(destination)
+
+    NavEntry(
+        key = destination,
+        // metadata = metadata,
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            screen(destination)
+        }
+    }
+}
 
 /**
  * Main entry point for consumers.
@@ -48,18 +67,11 @@ private data class NavSaveableKey(
 @Composable
 fun NavigationContent(
     modifier: Modifier = Modifier,
-    fallbackContent: @Composable () -> Unit
 ) {
-    if (!NavigationGraph.isConfigured()) {
-        fallbackContent()
-        return
-    }
+    if (!NavigationGraph.isConfigured()) return
 
     ProvideScreenStrategy(modifier = modifier.fillMaxSize()) {
-        RootSectionHost(
-            modifier = Modifier.fillMaxSize(),
-            fallbackContent = fallbackContent
-        )
+        RootSectionHost(modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -70,20 +82,14 @@ fun NavigationContent(
 @Composable
 fun RootSectionHost(
     modifier: Modifier = Modifier,
-    fallbackContent: @Composable () -> Unit
 ) {
     val state by GlobalNavigation.controller.state.collectAsState()
-    val root = state.rootSection
-
-    if (root == null) {
-        fallbackContent()
-        return
-    }
+    val root = state.rootSection ?: return
 
     val holder = rememberSaveableStateHolder()
 
     CompositionLocalProvider(
-        LocalNavSaveableStateHolder provides holder
+        LocalNaveSavableStateHolder provides holder
     ) {
         NavSectionHost(
             section = root,
@@ -118,7 +124,7 @@ fun NavSectionHost(
         return
     }
 
-    val holder = LocalNavSaveableStateHolder.current ?: rememberSaveableStateHolder()
+    val holder = LocalNaveSavableStateHolder.current ?: rememberSaveableStateHolder()
 
     // Keep latest values for the remembered provider closure
     val currentStackState = rememberUpdatedState(stackSnapshot)
@@ -157,7 +163,7 @@ fun NavSectionHost(
                                 .weight(strategy.twoPane.primaryPaneFraction)
                                 .fillMaxHeight()
                         ) {
-                            holder.SaveableStateProvider(NavSaveableKey(section, master)) {
+                            holder.SaveableStateProvider(NaveSavableKey(section, master)) {
                                 masterScreen(master)
                             }
                         }
@@ -166,13 +172,13 @@ fun NavSectionHost(
                                 .weight(1f - strategy.twoPane.primaryPaneFraction)
                                 .fillMaxHeight()
                         ) {
-                            holder.SaveableStateProvider(NavSaveableKey(section, destination)) {
+                            holder.SaveableStateProvider(NaveSavableKey(section, destination)) {
                                 screen(destination)
                             }
                         }
                     }
                 } else {
-                    holder.SaveableStateProvider(NavSaveableKey(section, destination)) {
+                    holder.SaveableStateProvider(NaveSavableKey(section, destination)) {
                         Box(modifier = Modifier.fillMaxSize()) {
                             screen(destination)
                         }
@@ -186,7 +192,7 @@ fun NavSectionHost(
         modifier = modifier,
         backStack = backStack,
         onBack = { navigation.navigateUp() },
-        entryProvider = provider
+        entryProvider = createEntryProvider()
     )
 }
 
@@ -204,9 +210,7 @@ fun NavChildSectionsHost(
     val children = remember(parentSection) { NavigationGraph.childrenOf(parentSection) }
     val active = state.activeChild[parentSection] ?: children.firstOrNull()
 
-    if (active == null) {
-        return
-    }
+    if (active == null) return
 
     NavSectionHost(
         section = active,

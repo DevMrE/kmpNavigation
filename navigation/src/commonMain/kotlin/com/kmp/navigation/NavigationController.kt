@@ -263,7 +263,7 @@ class NavigationController : Navigation {
         }
 
         // Avoid duplicating root destination if user navigates to the root explicitly
-        if (isRootNavigation && stack.size == 1 && stack.lastOrNull()?.let { it::class } == root?.let { it::class }) {
+        if (isRootNavigation && stack.size == 1 && stack.lastOrNull()?.let { it::class } == root::class) {
             activateSection(targetSection)
             updateState()
             return
