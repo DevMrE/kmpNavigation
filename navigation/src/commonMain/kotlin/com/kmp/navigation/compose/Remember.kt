@@ -8,16 +8,20 @@ import com.kmp.navigation.GlobalNavigation
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.NavSection
 import com.kmp.navigation.Navigation
+import com.kmp.navigation.ScreenStrategy
+import com.kmp.navigation.ScreenStrategyType
 
 @Composable
 fun rememberNavigation(): Navigation = remember { GlobalNavigation.navigation }
 
+/**
+ * Leaf-most destination (deepest active section + its top destination).
+ */
 @Composable
 fun rememberNavDestination(
     initialDestination: NavDestination? = null
 ): NavDestination {
     val state by GlobalNavigation.controller.state.collectAsState()
-
     return state.currentDestination
         ?: initialDestination
         ?: error(
@@ -28,15 +32,14 @@ fun rememberNavDestination(
 }
 
 /**
- * Liefert die aktuell sichtbare (deepest) Section.
- * Bei nested Sections ist das z.B. die aktive Tab-Section.
+ * Leaf-most active section (useful for nested sections like TabBar).
+ * For bottom bar selection prefer [rememberActiveChildSection(parentSection)].
  */
 @Composable
 fun rememberNavSection(
     initialSection: NavSection? = null
 ): NavSection {
     val state by GlobalNavigation.controller.state.collectAsState()
-
     return state.currentSection
         ?: initialSection
         ?: error(
@@ -46,25 +49,16 @@ fun rememberNavSection(
         )
 }
 
-/**
- * Root-Section des aktuell aktiven Graphs (z.B. BottomBarNavSection, wenn du so modellierst).
- */
 @Composable
 fun rememberRootNavSection(
     initialSection: NavSection? = null
 ): NavSection {
     val state by GlobalNavigation.controller.state.collectAsState()
-
     return state.rootSection
         ?: initialSection
-        ?: error(
-            "No root NavSection available and no initialSection provided."
-        )
+        ?: error("No root NavSection available and no initialSection provided.")
 }
 
-/**
- * Aktiver Child einer Parent-Section (für BottomBar/TabBar Auswahl).
- */
 @Composable
 fun rememberActiveChildSection(
     parentSection: NavSection,
@@ -73,7 +67,10 @@ fun rememberActiveChildSection(
     val state by GlobalNavigation.controller.state.collectAsState()
     return state.activeChild[parentSection]
         ?: initialChild
-        ?: error("No active child for parent ${parentSection::class.simpleName} and no initialChild provided.")
+        ?: error(
+            "No active child for parent ${parentSection::class.simpleName} " +
+                    "and no initialChild provided."
+        )
 }
 
 @Composable
@@ -81,3 +78,15 @@ fun rememberNavSectionPath(): List<NavSection> {
     val state by GlobalNavigation.controller.state.collectAsState()
     return state.currentPath
 }
+
+/**
+ * Screen strategy access (available when you use NavigationContent(), because it wraps ProvideScreenStrategy()).
+ */
+@Composable
+fun rememberScreenStrategyType(): ScreenStrategyType = LocalScreenStrategyType.current
+
+@Composable
+fun rememberScreenStrategy(): ScreenStrategy = LocalScreenStrategy.current
+
+@Composable
+fun rememberScreenSizeDp(): ScreenSizeDp = LocalScreenSizeDp.current

@@ -6,30 +6,10 @@ import kotlin.reflect.KClass
 /**
  * Top-level DSL builder used by [registerNavigation].
  *
- * It lets you declare type-safe sections and screens:
- *
- * ```kotlin
- * registerNavigation(
- *     startDestination = MovieScreenDestination
- * ) {
- *     section(
- *         section = HomeSection,
- *         root = MovieScreenDestination
- *     ) {
- *         screen<MovieScreenDestination> { MovieScreen() }
- *         screen<SeriesScreenDestination> { SeriesScreen() }
- *     }
- *
- *     section(
- *         section = SettingsSection,
- *         root = SettingsScreenDestination
- *     ) {
- *         screen<SettingsScreenDestination> { SettingsScreen() }
- *     }
- * }
- * ```
+ * Supports:
+ * - Nested sections (multi-backstack)
+ * - Screen roles (e.g. Detail for two-pane)
  */
-
 @NavigationDsl
 class RegisterNavigationBuilder @PublishedApi internal constructor(
     @PublishedApi internal val registerScreen: (
@@ -37,12 +17,13 @@ class RegisterNavigationBuilder @PublishedApi internal constructor(
         @Composable (NavDestination) -> Unit
     ) -> Unit,
     @PublishedApi internal val registerDestinationSection: (KClass<out NavDestination>, NavSection) -> Unit,
+    @PublishedApi internal val registerDestinationRole: (KClass<out NavDestination>, ScreenRole) -> Unit,
     @PublishedApi internal val registerSectionRoot: (NavSection, NavDestination) -> Unit,
     @PublishedApi internal val registerSectionParent: (NavSection, NavSection?) -> Unit,
 ) {
 
     /**
-     * Top-level section (parent = null)
+     * Declare a root section (parent = null).
      */
     inline fun <reified S : NavSection> section(
         section: S,
@@ -56,8 +37,9 @@ class RegisterNavigationBuilder @PublishedApi internal constructor(
             section = section,
             registerScreen = registerScreen,
             registerDestinationSection = registerDestinationSection,
+            registerDestinationRole = registerDestinationRole,
             registerSectionRoot = registerSectionRoot,
-            registerSectionParent = registerSectionParent
+            registerSectionParent = registerSectionParent,
         )
         sectionBuilder.builder()
     }
@@ -71,15 +53,21 @@ class SectionBuilder<S : NavSection> @PublishedApi internal constructor(
         @Composable (NavDestination) -> Unit
     ) -> Unit,
     @PublishedApi internal val registerDestinationSection: (KClass<out NavDestination>, NavSection) -> Unit,
+    @PublishedApi internal val registerDestinationRole: (KClass<out NavDestination>, ScreenRole) -> Unit,
     @PublishedApi internal val registerSectionRoot: (NavSection, NavDestination) -> Unit,
     @PublishedApi internal val registerSectionParent: (NavSection, NavSection?) -> Unit,
 ) {
 
+    /**
+     * Register a screen within this section.
+     */
     inline fun <reified D : NavDestination> screen(
+        role: ScreenRole = ScreenRole.Normal,
         noinline content: @Composable (D) -> Unit
     ) {
         val destKey = D::class
         registerDestinationSection(destKey, section)
+        registerDestinationRole(destKey, role)
         registerScreen(destKey) { dest ->
             @Suppress("UNCHECKED_CAST")
             content(dest as D)
@@ -87,7 +75,7 @@ class SectionBuilder<S : NavSection> @PublishedApi internal constructor(
     }
 
     /**
-     * Nested section (parent = this.section)
+     * Register a nested section (child of this.section).
      */
     inline fun <reified C : NavSection> section(
         section: C,
@@ -101,8 +89,9 @@ class SectionBuilder<S : NavSection> @PublishedApi internal constructor(
             section = section,
             registerScreen = registerScreen,
             registerDestinationSection = registerDestinationSection,
+            registerDestinationRole = registerDestinationRole,
             registerSectionRoot = registerSectionRoot,
-            registerSectionParent = registerSectionParent
+            registerSectionParent = registerSectionParent,
         )
         nestedBuilder.builder()
     }

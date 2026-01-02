@@ -4,8 +4,8 @@ import androidx.compose.runtime.Composable
 import kotlin.reflect.KClass
 
 /**
- * Global registry mapping [NavDestination] -> screen content
- * + graph metadata for nested sections.
+ * Global registry mapping destination types to composable content,
+ * and graph metadata for sections (nested multi-backstack).
  */
 object NavigationGraph {
 
@@ -16,7 +16,11 @@ object NavigationGraph {
     private val destinationSections =
         mutableMapOf<KClass<out NavDestination>, NavSection>()
 
-    // section instance -> root destination instance
+    // destination type -> screen role
+    private val destinationRoles =
+        mutableMapOf<KClass<out NavDestination>, ScreenRole>()
+
+    // section -> root destination instance
     private val sectionRoots =
         mutableMapOf<NavSection, NavDestination>()
 
@@ -42,6 +46,7 @@ object NavigationGraph {
     ) {
         screens.clear()
         destinationSections.clear()
+        destinationRoles.clear()
         sectionRoots.clear()
         sectionParents.clear()
         sectionChildren.clear()
@@ -57,6 +62,9 @@ object NavigationGraph {
             },
             registerDestinationSection = { destKey, section ->
                 destinationSections[destKey] = section
+            },
+            registerDestinationRole = { destKey, role ->
+                destinationRoles[destKey] = role
             },
             registerSectionRoot = { section, root ->
                 if (sectionRoots.put(section, root) != null) {
@@ -82,8 +90,10 @@ object NavigationGraph {
         dsl.builder()
         configured = true
 
+        // push graph metadata into controller
         GlobalNavigation.controller.configureGraph(
             destinationToSection = destinationSections.toMap(),
+            destinationRoles = destinationRoles.toMap(),
             sectionRoots = sectionRoots.toMap(),
             sectionParents = sectionParents.toMap(),
             sectionChildren = sectionChildren.mapValues { it.value.toList() },
@@ -101,6 +111,9 @@ object NavigationGraph {
 
     internal fun findScreen(destination: NavDestination): (@Composable (NavDestination) -> Unit)? =
         screens[destination::class]
+
+    internal fun roleOf(destination: NavDestination): ScreenRole =
+        destinationRoles[destination::class] ?: ScreenRole.Normal
 
     internal fun parentOf(section: NavSection): NavSection? = sectionParents[section]
 

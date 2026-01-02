@@ -6,20 +6,24 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlin.reflect.KClass
 
 /**
- * Multi-backstack + nested sections.
+ * Multi-backstack controller with nested sections.
  *
- * - Jede NavSection hat ihren eigenen Stack.
- * - Sections können nested sein (Parent -> Child).
- * - Sichtbare Destination = deepest Section auf dem aktiven Pfad,
- *   ABER nur solange der Parent auf seiner Root-Destination steht.
+ * - Each [NavSection] has its own backstack.
+ * - Sections may be nested: parent -> child
+ * - Parent keeps an "active child" pointer (like bottom nav or tab nav)
+ * - Leaf destination = deepest active child, BUT only while parents are on their root destination.
+ *
+ * State restoration:
+ * - If you use NavOptions.popTo(saveState=true), the current stack of that section is saved.
+ * - If you later navigate to the SECTION ROOT with restoreState=true, the saved stack can be restored.
  */
 class NavigationController : Navigation {
 
     data class State(
         val rootSection: NavSection? = null,
-        val currentSection: NavSection? = null,
+        val currentSection: NavSection? = null,        // leaf-most active section
         val currentPath: List<NavSection> = emptyList(),
-        val currentDestination: NavDestination? = null,
+        val currentDestination: NavDestination? = null, // leaf-most destination
         val backStacks: Map<NavSection, List<NavDestination>> = emptyMap(),
         val activeChild: Map<NavSection, NavSection> = emptyMap(),
         val lastEvent: NavigationEvent = NavigationEvent.Idle
@@ -30,7 +34,7 @@ class NavigationController : Navigation {
     // parent -> currently active child
     private val activeChild = mutableMapOf<NavSection, NavSection>()
 
-    // section -> last saved stack (for PopTo(saveState=true) + restoreState)
+    // section -> last saved stack (for popTo(saveState=true) + restoreState)
     private val savedStacks = mutableMapOf<NavSection, List<NavDestination>>()
 
     private val _state = MutableStateFlow(State())
@@ -38,6 +42,9 @@ class NavigationController : Navigation {
 
     // destination type -> section
     private var destinationSections: Map<KClass<out NavDestination>, NavSection> = emptyMap()
+
+    // destination type -> role
+    private var destinationRoles: Map<KClass<out NavDestination>, ScreenRole> = emptyMap()
 
     // section -> root destination
     private var sectionRoots: Map<NavSection, NavDestination> = emptyMap()
@@ -53,23 +60,28 @@ class NavigationController : Navigation {
 
     private var lastEvent: NavigationEvent = NavigationEvent.Idle
 
-    // currently active graph root
+    // currently active graph root section
     private var activeRoot: NavSection? = null
 
     internal fun configureGraph(
         destinationToSection: Map<KClass<out NavDestination>, NavSection>,
+        destinationRoles: Map<KClass<out NavDestination>, ScreenRole>,
         sectionRoots: Map<NavSection, NavDestination>,
         sectionParents: Map<NavSection, NavSection?>,
         sectionChildren: Map<NavSection, List<NavSection>>,
         sectionSiblingIndex: Map<NavSection, Int>,
     ) {
         this.destinationSections = destinationToSection
+        this.destinationRoles = destinationRoles
         this.sectionRoots = sectionRoots
         this.sectionParents = sectionParents
         this.sectionChildren = sectionChildren
         this.sectionSiblingIndex = sectionSiblingIndex
         updateState()
     }
+
+    internal fun roleOf(destination: NavDestination): ScreenRole =
+        destinationRoles[destination::class] ?: ScreenRole.Normal
 
     private fun sectionOf(destination: NavDestination): NavSection? =
         destinationSections[destination::class]
@@ -100,6 +112,18 @@ class NavigationController : Navigation {
         }
     }
 
+    private fun ensureActiveDescendantsFrom(section: NavSection?) {
+        var current = section ?: return
+        while (true) {
+            val children = childrenOf(current)
+            if (children.isEmpty()) return
+
+            val child = activeChild[current] ?: children.first().also { activeChild[current] = it }
+            ensureInitialized(child)
+            current = child
+        }
+    }
+
     private fun activateSection(section: NavSection) {
         ensureInitializedWithAncestors(section)
 
@@ -115,18 +139,6 @@ class NavigationController : Navigation {
 
         // Ensure defaults for nested children (so nested hosts can render immediately)
         ensureActiveDescendantsFrom(activeRoot)
-    }
-
-    private fun ensureActiveDescendantsFrom(section: NavSection?) {
-        var current = section ?: return
-        while (true) {
-            val children = childrenOf(current)
-            if (children.isEmpty()) return
-
-            val child = activeChild[current] ?: children.first().also { activeChild[current] = it }
-            ensureInitialized(child)
-            current = child
-        }
     }
 
     /**
@@ -227,20 +239,13 @@ class NavigationController : Navigation {
         ensureInitializedWithAncestors(targetSection)
         val stack = stackFor(targetSection)
 
-        // restoreState:
-        // 1) if type exists in current stack -> pop to it
-        // 2) else restore saved stack if it contained the type
-        if (navOptions.restoreState) {
-            val idx = stack.indexOfLast { it::class == navDestination::class }
-            if (idx >= 0) {
-                stack.subList(idx + 1, stack.size).clear()
-                activateSection(targetSection)
-                updateState()
-                return
-            }
+        val root = rootOf(targetSection)
+        val isRootNavigation = root != null && navDestination::class == root::class
 
+        // restoreState: only meaningful/safe for re-selecting the section root
+        if (navOptions.restoreState && isRootNavigation) {
             val saved = savedStacks[targetSection]
-            if (saved != null && saved.any { it::class == navDestination::class }) {
+            if (saved != null && saved.isNotEmpty() && saved.first()::class == root::class) {
                 sectionStacks[targetSection] = saved.toMutableList()
                 savedStacks.remove(targetSection)
 
@@ -258,11 +263,7 @@ class NavigationController : Navigation {
         }
 
         // Avoid duplicating root destination if user navigates to the root explicitly
-        val root = rootOf(targetSection)
-        val isRootNavigation = root != null && navDestination::class == root::class
-        val lastClass = stack.lastOrNull()?.let { it::class }
-
-        if (isRootNavigation && stack.size == 1 && lastClass == root?.let { it::class }) {
+        if (isRootNavigation && stack.size == 1 && stack.lastOrNull()?.let { it::class } == root?.let { it::class }) {
             activateSection(targetSection)
             updateState()
             return
