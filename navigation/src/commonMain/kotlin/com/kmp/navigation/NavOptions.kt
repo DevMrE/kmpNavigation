@@ -4,26 +4,26 @@ package com.kmp.navigation
  * Options to influence how a navigation action is performed.
  *
  * - [singleTop]: avoid pushing the same destination on top if it is already current.
- * - [restoreState]: attempt to restore saved state when re selecting a destination.
+ * - [restoreState]: attempt to restore saved state when re-selecting a destination.
+ * - [overlay]: if true, the target section renders on top of the current one.
  * - [backstack]: how the back stack should be adjusted for this navigation.
  */
 data class NavOptions(
     var singleTop: Boolean = true,
     var restoreState: Boolean = false,
+    var overlay: Boolean = true,
     var backstack: Backstack = Backstack.None,
 ) {
     /**
      * Back stack behavior for a navigation action.
      */
     sealed interface Backstack {
-        /**
-         * Keep existing back stack.
-         */
+        /** Keep existing back stack. */
         data object None : Backstack
 
         /**
          * Pop up to [navDestination]. If [inclusive] is true,
-         * also remove [navDestination]. Optionally [saveState].
+         * also remove [navDestination].
          */
         data class PopTo(
             val navDestination: NavDestination,
@@ -31,15 +31,11 @@ data class NavOptions(
             val saveState: Boolean = false
         ) : Backstack
 
-        /**
-         * Clear the whole stack to the graph root.
-         */
+        /** Clear the whole stack. */
         data object Clear : Backstack
     }
 
-    /**
-     * Configure to pop up to [navDestination] before navigating.
-     */
+    /** Configure to pop up to [navDestination] before navigating. */
     fun popTo(
         navDestination: NavDestination,
         inclusive: Boolean = false,

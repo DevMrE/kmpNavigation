@@ -1,32 +1,15 @@
 package com.kmp.navigation
 
-/**
- * Platform-agnostic navigation API used by both ViewModels and Compose.
- *
- * ```kotlin
- * class LoginViewModel(
- *     private val navigation: Navigation
- * ) : ViewModel() {
- *
- *     fun onLoginSuccess() {
- *         navigation.navigateTo(HomeScreenDestination) {
- *             clearStack()
- *         }
- *     }
- *
- *     fun onSettingsClicked() {
- *         navigation.switchTo(SettingsSection)
- *     }
- * }
- * ```
- */
 interface Navigation {
 
     /**
-     * Navigate to the given [navDestination] and push it on the global back stack.
+     * Navigate to the given [navDestination] and push it onto the back stack.
+     *
+     * Use this for forward navigation where the user should be able to
+     * navigate back with [navigateUp].
      *
      * ```kotlin
-     * navigation.navigateTo(MovieScreenDestination)
+     * navigation.navigateTo(MovieContentListDestination)
      *
      * navigation.navigateTo(DetailScreenDestination(id = 42)) {
      *     singleTop = true
@@ -41,20 +24,25 @@ interface Navigation {
     /**
      * Switch to the given [section].
      *
-     * The implementation will:
-     * * Look up the last visited destination of that section, if any.
-     * * Otherwise fall back to the configured root destination of that section.
-     * * Push that destination as a new entry on the global back stack.
+     * This does NOT push onto the back stack – the user cannot navigate
+     * back to the previous section with [navigateUp].
+     *
+     * The last visited destination of [section] is restored. If the section
+     * has never been visited, the configured root destination is used.
      *
      * ```kotlin
+     * // BottomBar click
      * navigation.switchTo(HomeSection)
      * navigation.switchTo(SettingsSection)
+     *
+     * // Tab click inside HomeSection
+     * navigation.switchTo(SeriesTab)
      * ```
      */
     fun switchTo(section: NavSection)
 
     /**
-     * Pop a single entry from the global back stack.
+     * Pop a single entry from the back stack.
      *
      * If there is only one entry left, this is a no-op.
      *
@@ -65,7 +53,7 @@ interface Navigation {
     fun navigateUp()
 
     /**
-     * Pop entries from the global back stack until [navDestination] is reached.
+     * Pop entries from the back stack until [navDestination] is reached.
      *
      * If [navDestination] is null, this behaves like [navigateUp].
      *

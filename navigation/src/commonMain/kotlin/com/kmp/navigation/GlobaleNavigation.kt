@@ -30,6 +30,6 @@ object GlobalNavigation {
      * Typed access to the underlying [NavigationController].
      * Used internally by compose helpers and the navigation graph.
      */
-    internal val controller: NavigationController
+    val controller: NavigationController
         get() = navigation as NavigationController
 }

@@ -6,25 +6,25 @@ import kotlin.reflect.KClass
 /**
  * Top-level DSL builder used by [registerNavigation].
  *
- * It lets you declare type-safe sections and screens:
+ * Supports nested sections and registers screens within their section scope.
  *
  * ```kotlin
- * registerNavigation(
- *     startDestination = MovieScreenDestination
- * ) {
- *     section(
- *         section = HomeSection,
- *         root = MovieScreenDestination
- *     ) {
- *         screen<MovieScreenDestination> { MovieScreen() }
- *         screen<SeriesScreenDestination> { SeriesScreen() }
+ * registerNavigation(startDestination = AppRootDestination) {
+ *
+ *     section<AppRootSection>(root = AppRootDestination) {
+ *
+ *         section<HomeSection>(root = MovieScreenDestination) {
+ *             screen<MovieScreenDestination> { MovieScreen() }
+ *             screen<SeriesScreenDestination> { SeriesScreen() }
+ *         }
+ *
+ *         section<SettingsSection>(root = SettingsScreenDestination) {
+ *             screen<SettingsScreenDestination> { SettingsScreen() }
+ *         }
  *     }
  *
- *     section(
- *         section = SettingsSection,
- *         root = SettingsScreenDestination
- *     ) {
- *         screen<SettingsScreenDestination> { SettingsScreen() }
+ *     section<DetailSection>(root = DetailScreenDestination(id = ""), overlay = true) {
+ *         screen<DetailScreenDestination> { detail -> DetailScreen(detail.id) }
  *     }
  * }
  * ```
@@ -33,22 +33,20 @@ import kotlin.reflect.KClass
 class RegisterNavigationBuilder @PublishedApi internal constructor(
     @PublishedApi internal val registerScreen: (KClass<out NavDestination>, @Composable (NavDestination) -> Unit) -> Unit,
     @PublishedApi internal val registerDestinationSection: (KClass<out NavDestination>, NavSection) -> Unit,
-    @PublishedApi internal val registerSectionRoot: (NavSection, NavDestination) -> Unit
+    @PublishedApi internal val registerSectionRoot: (NavSection, NavDestination, NavSection?, Boolean) -> Unit,
+    @PublishedApi internal val currentSection: NavSection? = null
 ) {
 
     /**
-     * Declare a new navigation section.
+     * Declare a navigation section, optionally nested inside the current section.
      *
-     * @param S Section type implementing [NavSection].
-     * @param section The concrete singleton instance of the section, e.g. HomeSection.
-     * @param root Root destination instance for this section. This is used when switching
-     * to the section for the first time or when there is no "last screen" remembered.
+     * @param section The singleton instance of the section.
+     * @param root The root destination shown when entering this section for the first time.
+     * @param overlay If true (default), this section renders as an overlay on top of its
+     * parent when navigated to. If false, it replaces the parent completely.
      *
      * ```kotlin
-     * section(
-     *     section = HomeSection,
-     *     root = MovieScreenDestination
-     * ) {
+     * section<HomeSection>(root = MovieScreenDestination) {
      *     screen<MovieScreenDestination> { MovieScreen() }
      *     screen<SeriesScreenDestination> { SeriesScreen() }
      * }
@@ -57,59 +55,37 @@ class RegisterNavigationBuilder @PublishedApi internal constructor(
     inline fun <reified S : NavSection> section(
         section: S,
         root: NavDestination,
-        noinline builder: SectionBuilder<S>.() -> Unit
+        overlay: Boolean = true,
+        noinline builder: RegisterNavigationBuilder.() -> Unit
     ) {
-        // remember root destination for this section
-        registerSectionRoot(section, root)
+        registerSectionRoot(section, root, currentSection, overlay)
 
-        val sectionBuilder = SectionBuilder(
-            section = section,
+        RegisterNavigationBuilder(
             registerScreen = registerScreen,
-            registerDestinationSection = registerDestinationSection
-        )
-        sectionBuilder.builder()
+            registerDestinationSection = registerDestinationSection,
+            registerSectionRoot = registerSectionRoot,
+            currentSection = section
+        ).builder()
     }
-}
-
-/**
- * Builder that registers all screens belonging to a section.
- *
- * ```kotlin
- * section(
- *     section = HomeSection,
- *     root = MovieScreenDestination
- * ) {
- *     screen<MovieScreenDestination> { MovieScreen() }
- *     screen<SeriesScreenDestination> { SeriesScreen() }
- * }
- * ```
- */
-@NavigationDsl
-class SectionBuilder<S : NavSection> @PublishedApi internal constructor(
-    @PublishedApi internal val section: S,
-    @PublishedApi internal val registerScreen: (KClass<out NavDestination>, @Composable (NavDestination) -> Unit) -> Unit,
-    @PublishedApi internal val registerDestinationSection: (KClass<out NavDestination>, NavSection) -> Unit
-) {
 
     /**
-     * Register a screen for destination type [D].
+     * Register a composable screen for destination type [D].
+     *
+     * Must be called inside a [section] block.
      *
      * ```kotlin
-     * section(
-     *     section = HomeSection,
-     *     root = MovieScreenDestination
-     * ) {
-     *     screen<MovieScreenDestination> { MovieScreen() }
-     *     screen<SeriesScreenDestination> { SeriesScreen() }
+     * screen<MovieScreenDestination> { destination ->
+     *     MovieScreen(destination.id)
      * }
      * ```
      */
     inline fun <reified D : NavDestination> screen(
         noinline content: @Composable (D) -> Unit
     ) {
-        val destKey = D::class
-        registerDestinationSection(destKey, section)
-        registerScreen(destKey) { dest ->
+        val section = currentSection ?: error("screen<${D::class.simpleName}> must be called inside a section { } block.")
+
+        registerDestinationSection(D::class, section)
+        registerScreen(D::class) { dest ->
             @Suppress("UNCHECKED_CAST")
             content(dest as D)
         }

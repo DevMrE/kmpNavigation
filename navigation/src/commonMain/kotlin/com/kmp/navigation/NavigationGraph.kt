@@ -4,56 +4,44 @@ import androidx.compose.runtime.Composable
 import kotlin.reflect.KClass
 
 /**
- * Global registry mapping [NavDestination] types to their composable content
- * and tracking which section each destination belongs to.
+ * Global registry mapping [NavDestination] types to their composable content,
+ * tracking section hierarchy, and managing overlay configuration.
  */
 object NavigationGraph {
 
-    private val screens =
-        mutableMapOf<KClass<out NavDestination>, @Composable (NavDestination) -> Unit>()
+    private val screens = mutableMapOf<KClass<out NavDestination>, @Composable (NavDestination) -> Unit>()
+    private val destinationSections = mutableMapOf<KClass<out NavDestination>, NavSection>()
+    private val sectionRoots = mutableMapOf<NavSection, NavDestination>()
+    private val sectionIndices = mutableMapOf<NavSection, Int>()
 
-    // destination type -> section instance
-    private val destinationSections =
-        mutableMapOf<KClass<out NavDestination>, NavSection>()
+    // child section -> parent section
+    private val sectionParents = mutableMapOf<NavSection, NavSection>()
 
-    // section instance -> root destination instance
-    private val sectionRoots =
-        mutableMapOf<NavSection, NavDestination>()
-
-    // section instance -> position index (used for swipe direction)
-    private val sectionIndices =
-        mutableMapOf<NavSection, Int>()
+    // sections that render as overlay on top of their parent
+    private val overlaySections = mutableSetOf<NavSection>()
 
     private var configured: Boolean = false
 
-    /**
-     * Returns whether the graph has been configured already.
-     */
     fun isConfigured(): Boolean = configured
 
     /**
      * Configure the navigation graph and set [startDestination] as the initial entry.
      *
-     * This is a regular Kotlin function and can be called from any initialization
-     * code (e.g. Application.onCreate, before you render your Compose UI).
-     *
      * ```kotlin
-     * fun registerAppNavigation() {
-     *     registerNavigation(startDestination = MovieScreenDestination) {
-     *         section(
-     *             section = HomeSection,
-     *             root = MovieScreenDestination
-     *         ) {
+     * registerNavigation(startDestination = AppRootDestination) {
+     *
+     *     section<AppRootSection>(root = AppRootDestination) {
+     *         section<HomeSection>(root = MovieScreenDestination) {
      *             screen<MovieScreenDestination> { MovieScreen() }
      *             screen<SeriesScreenDestination> { SeriesScreen() }
      *         }
-     *
-     *         section(
-     *             section = SettingsSection,
-     *             root = SettingsScreenDestination
-     *         ) {
+     *         section<SettingsSection>(root = SettingsScreenDestination) {
      *             screen<SettingsScreenDestination> { SettingsScreen() }
      *         }
+     *     }
+     *
+     *     section<DetailSection>(root = DetailScreenDestination(id = ""), overlay = true) {
+     *         screen<DetailScreenDestination> { detail -> DetailScreen(detail.id) }
      *     }
      * }
      * ```
@@ -66,6 +54,8 @@ object NavigationGraph {
         destinationSections.clear()
         sectionRoots.clear()
         sectionIndices.clear()
+        sectionParents.clear()
+        overlaySections.clear()
 
         var nextSectionIndex = 0
 
@@ -78,10 +68,16 @@ object NavigationGraph {
             registerDestinationSection = { destKey, section ->
                 destinationSections[destKey] = section
             },
-            registerSectionRoot = { section, root ->
+            registerSectionRoot = { section, root, parentSection, isOverlay ->
                 sectionRoots[section] = root
                 if (!sectionIndices.containsKey(section)) {
                     sectionIndices[section] = nextSectionIndex++
+                }
+                if (parentSection != null) {
+                    sectionParents[section] = parentSection
+                }
+                if (isOverlay) {
+                    overlaySections += section
                 }
             }
         )
@@ -89,33 +85,60 @@ object NavigationGraph {
 
         configured = true
 
-        // Inform the NavigationController about section mapping & roots
         GlobalNavigation.controller.configureSections(
             destinationToSection = destinationSections.toMap(),
             sectionRoots = sectionRoots.toMap()
         )
 
-        // Set initial destination once
-        val controller = GlobalNavigation.controller
-        if (controller.state.value.currentDestination == null) {
-            GlobalNavigation.navigation.navigateTo(startDestination) {
-                clearStack()
-            }
+        if (GlobalNavigation.controller.state.value.currentDestination == null) {
+            GlobalNavigation.navigation.navigateTo(startDestination) { clearStack() }
         }
     }
 
-    internal fun findScreen(
+    fun findScreen(
         destination: NavDestination
     ): (@Composable (NavDestination) -> Unit)? = screens[destination::class]
 
     /**
-     * Returns the position index of the section that the given [destination] belongs to,
-     * or `null` if the destination is not associated with any section.
-     *
-     * The index is assigned in declaration order of `section(...)` inside the DSL.
+     * Returns the position index of the section the [destination] belongs to.
+     * Used to determine slide direction in animations.
      */
-    internal fun sectionIndexFor(destination: NavDestination): Int? {
+    fun sectionIndexFor(destination: NavDestination): Int? {
         val section = destinationSections[destination::class] ?: return null
         return sectionIndices[section]
+    }
+
+    /**
+     * Returns true if [destination] belongs to [sectionClass] or any descendant of it.
+     *
+     * Used by [NavigationContent] to decide whether to render for a given section scope.
+     */
+    fun destinationBelongsToSectionScope(
+        destination: NavDestination,
+        sectionClass: KClass<out NavSection>
+    ): Boolean {
+        val destSection = destinationSections[destination::class] ?: return false
+        return isSectionOrDescendant(destSection, scopeClass = sectionClass)
+    }
+
+    /**
+     * Returns true if [section] is configured as an overlay section.
+     */
+    internal fun isOverlaySection(section: NavSection): Boolean =
+        section in overlaySections
+
+    /**
+     * Returns the direct parent section of [section], or null if it has none.
+     */
+    internal fun parentSectionOf(section: NavSection): NavSection? =
+        sectionParents[section]
+
+    private fun isSectionOrDescendant(
+        candidate: NavSection,
+        scopeClass: KClass<out NavSection>
+    ): Boolean {
+        if (candidate::class == scopeClass) return true
+        val parent = sectionParents[candidate] ?: return false
+        return isSectionOrDescendant(parent, scopeClass)
     }
 }
