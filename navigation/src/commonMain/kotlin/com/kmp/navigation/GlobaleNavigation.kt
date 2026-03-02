@@ -1,7 +1,5 @@
 package com.kmp.navigation
 
-import com.kmp.navigation.compose.rememberNavigation
-
 /**
  * Global holder for the single [Navigation] instance used by the app.
  *

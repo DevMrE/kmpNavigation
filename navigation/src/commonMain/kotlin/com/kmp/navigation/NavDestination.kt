@@ -1,7 +1,5 @@
 package com.kmp.navigation
 
-import kotlinx.serialization.Serializable
-
 /**
  * Marker interface for typed navigation destinations.
  *
