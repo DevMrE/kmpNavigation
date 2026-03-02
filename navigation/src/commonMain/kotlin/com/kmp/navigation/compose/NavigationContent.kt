@@ -21,10 +21,7 @@ import com.kmp.navigation.NavigationGraph
 
 /**
  * Root-level NavigationContent – renders whatever destination is currently
- * active, regardless of section.
- *
- * Use this when a destination does not belong to any section, or once at
- * the very top of your app as the outermost navigation host.
+ * active, regardless of section. Place this once at the very top of your app.
  *
  * ```kotlin
  * @Composable
@@ -73,29 +70,25 @@ fun RootNavigationContent(
 }
 
 /**
- * Section-scoped NavigationContent – only renders destinations that belong
+ * Section-scoped NavigationContent – renders destinations that belong
  * to section [S] or any of its nested subsections.
  *
- * Place this inside the shell screen that owns section [S].
+ * The root destination of section [S] itself is treated as the shell marker
+ * and is NOT rendered here – it is rendered by whoever calls this composable.
  *
  * ```kotlin
- * // Shell screen for AppRootSection (has BottomBar)
  * @Composable
- * fun AppRootScreen() {
- *     Scaffold(
- *         bottomBar = { BottomBar() }
- *     ) { padding ->
+ * fun AppRootContent() {
+ *     Scaffold(bottomBar = { BottomBar() }) { padding ->
  *         NavigationContent<AppRootSection>(modifier = Modifier.padding(padding))
  *     }
  * }
  *
- * // Shell screen for HomeSection (has TabBar)
  * @Composable
  * fun HomeScreen() {
- *     Scaffold(
- *         topBar = { TabBar() }
- *     ) { padding ->
- *         NavigationContent<HomeSection>(modifier = Modifier.padding(padding))
+ *     Column {
+ *         TabBar()
+ *         NavigationContent<HomeScreenSection>()
  *     }
  * }
  * ```
@@ -106,10 +99,17 @@ inline fun <reified S : NavSection> NavigationContent(
     modifier: Modifier = Modifier
 ) {
     val navState by GlobalNavigation.controller.state.collectAsState()
-    val current = navState.currentDestination ?: return
     val lastEvent = navState.lastEvent
 
-    if (!NavigationGraph.destinationBelongsToSectionScope(current, S::class)) return
+    // Find the best destination to render for this section scope:
+    // Walk the back stack from top to find the first destination that:
+    // 1. Belongs to section S or its sub-sections
+    // 2. Is NOT the shell root of section S itself
+    val current = navState.backStack
+        .lastOrNull { destination ->
+            NavigationGraph.destinationBelongsToSectionScope(destination, S::class)
+                    && !NavigationGraph.isSectionShellRoot(destination, S::class)
+        } ?: return
 
     AnimatedContent(
         modifier = modifier,

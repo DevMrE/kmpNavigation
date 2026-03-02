@@ -17,7 +17,6 @@ object NavigationGraph {
 
     fun isConfigured(): Boolean = configured
 
-    // Temporär für Debug – danach entfernen
     fun debugPrintHierarchy() {
         Logger.i("NavigationGraph") { "=== destinationSections ===" }
         destinationSections.forEach { (k, v) -> Logger.i("NavigationGraph") { "${k.simpleName} -> $v" } }
@@ -85,17 +84,29 @@ object NavigationGraph {
         return sectionIndices[section]
     }
 
-    /**
-     * Returns true if [destination] belongs to [sectionClass] or any descendant of it.
-     *
-     * Used by [NavigationContent] to decide whether to render for a given section scope.
-     */
     fun destinationBelongsToSectionScope(
         destination: NavDestination,
         sectionClass: KClass<out NavSection>
     ): Boolean {
         val destSection = destinationSections[destination::class] ?: return false
         return isSectionOrDescendant(destSection, scopeClass = sectionClass)
+    }
+
+    /**
+     * Returns true if [destination] is the shell root of [sectionClass].
+     *
+     * The shell root is the root destination of the section itself – the one
+     * whose registered screen contains NavigationContent<S>. It must not be
+     * rendered by NavigationContent<S> itself to avoid infinite loops.
+     */
+    fun isSectionShellRoot(
+        destination: NavDestination,
+        sectionClass: KClass<out NavSection>
+    ): Boolean {
+        // Find the section instance for sectionClass
+        val section = sectionRoots.keys.firstOrNull { it::class == sectionClass } ?: return false
+        val root = sectionRoots[section] ?: return false
+        return destination::class == root::class
     }
 
     internal fun isOverlaySection(section: NavSection): Boolean =
