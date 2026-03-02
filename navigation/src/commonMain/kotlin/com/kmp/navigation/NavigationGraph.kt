@@ -1,51 +1,32 @@
 package com.kmp.navigation
 
 import androidx.compose.runtime.Composable
+import co.touchlab.kermit.Logger
 import kotlin.reflect.KClass
 
-/**
- * Global registry mapping [NavDestination] types to their composable content,
- * tracking section hierarchy, and managing overlay configuration.
- */
 object NavigationGraph {
 
     private val screens = mutableMapOf<KClass<out NavDestination>, @Composable (NavDestination) -> Unit>()
     private val destinationSections = mutableMapOf<KClass<out NavDestination>, NavSection>()
     private val sectionRoots = mutableMapOf<NavSection, NavDestination>()
     private val sectionIndices = mutableMapOf<NavSection, Int>()
-
-    // child section -> parent section
     private val sectionParents = mutableMapOf<NavSection, NavSection>()
-
-    // sections that render as overlay on top of their parent
     private val overlaySections = mutableSetOf<NavSection>()
 
     private var configured: Boolean = false
 
     fun isConfigured(): Boolean = configured
 
-    /**
-     * Configure the navigation graph and set [startDestination] as the initial entry.
-     *
-     * ```kotlin
-     * registerNavigation(startDestination = AppRootDestination) {
-     *
-     *     section<AppRootSection>(root = AppRootDestination) {
-     *         section<HomeSection>(root = MovieScreenDestination) {
-     *             screen<MovieScreenDestination> { MovieScreen() }
-     *             screen<SeriesScreenDestination> { SeriesScreen() }
-     *         }
-     *         section<SettingsSection>(root = SettingsScreenDestination) {
-     *             screen<SettingsScreenDestination> { SettingsScreen() }
-     *         }
-     *     }
-     *
-     *     section<DetailSection>(root = DetailScreenDestination(id = ""), overlay = true) {
-     *         screen<DetailScreenDestination> { detail -> DetailScreen(detail.id) }
-     *     }
-     * }
-     * ```
-     */
+    // Temporär für Debug – danach entfernen
+    fun debugPrintHierarchy() {
+        Logger.i("NavigationGraph") { "=== destinationSections ===" }
+        destinationSections.forEach { (k, v) -> Logger.i("NavigationGraph") { "${k.simpleName} -> $v" } }
+        Logger.i("NavigationGraph") { "=== sectionParents ===" }
+        sectionParents.forEach { (k, v) -> Logger.i("NavigationGraph") { "$k -> $v" } }
+        Logger.i("NavigationGraph") { "=== sectionRoots ===" }
+        sectionRoots.forEach { (k, v) -> Logger.i("NavigationGraph") { "$k -> $v" } }
+    }
+
     fun configureNavigationGraph(
         startDestination: NavDestination,
         builder: RegisterNavigationBuilder.() -> Unit
@@ -99,10 +80,6 @@ object NavigationGraph {
         destination: NavDestination
     ): (@Composable (NavDestination) -> Unit)? = screens[destination::class]
 
-    /**
-     * Returns the position index of the section the [destination] belongs to.
-     * Used to determine slide direction in animations.
-     */
     fun sectionIndexFor(destination: NavDestination): Int? {
         val section = destinationSections[destination::class] ?: return null
         return sectionIndices[section]
@@ -121,15 +98,9 @@ object NavigationGraph {
         return isSectionOrDescendant(destSection, scopeClass = sectionClass)
     }
 
-    /**
-     * Returns true if [section] is configured as an overlay section.
-     */
     internal fun isOverlaySection(section: NavSection): Boolean =
         section in overlaySections
 
-    /**
-     * Returns the direct parent section of [section], or null if it has none.
-     */
     internal fun parentSectionOf(section: NavSection): NavSection? =
         sectionParents[section]
 
