@@ -19,6 +19,8 @@ logger = { group = "co.touchlab", name = "kermit", version.ref = "loggerVersion"
 composeNavigation = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "comoseNavigationVersion" }
 navigation3 = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "cmpNavigation3" }
 androidx-lifecycle-nav3 = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "androidx-lifecycle" }
+composeRuntime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
+composeUi = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
@@ -33,3 +35,4 @@ serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref 
 navigation3 = ["navigation3", "androidx-lifecycle-nav3"]
 koin = ["koinCore", "koinCompose"]
 lifecycle = ["androidx-lifecycle-viewmodelCompose", "androidx-lifecycle-runtimeCompose"]
+compose = ["composeUi", "composeRuntime"]

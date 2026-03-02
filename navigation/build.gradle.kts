@@ -12,7 +12,7 @@ plugins {
 
 // publishing version
 group = "com.kmp.navigation"
-version = "0.6.0"
+version = "0.6.1"
 
 kotlin {
     compilerOptions {
@@ -37,8 +37,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(libs.kotlin.stdlib)
-            implementation(compose.runtime)
-            implementation(compose.ui)
+            implementation(libs.bundles.compose)
 
             implementation(libs.bundles.lifecycle)
 
