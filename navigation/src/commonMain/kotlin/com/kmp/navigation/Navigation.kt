@@ -5,12 +5,8 @@ interface Navigation {
     /**
      * Navigate to the given [navDestination] and push it onto the back stack.
      *
-     * Use this for forward navigation where the user should be able to
-     * navigate back with [navigateUp].
-     *
      * ```kotlin
      * navigation.navigateTo(MovieContentListDestination)
-     *
      * navigation.navigateTo(DetailScreenDestination(id = 42)) {
      *     singleTop = true
      * }
@@ -24,22 +20,33 @@ interface Navigation {
     /**
      * Switch to the given [section].
      *
-     * This does NOT push onto the back stack – the user cannot navigate
-     * back to the previous section with [navigateUp].
+     * Does NOT push onto the back stack – the user cannot navigate back
+     * to the previous section with [navigateUp].
      *
      * The last visited destination of [section] is restored. If the section
      * has never been visited, the configured root destination is used.
      *
      * ```kotlin
-     * // BottomBar click
      * navigation.switchTo(HomeSection)
      * navigation.switchTo(SettingsSection)
-     *
-     * // Tab click inside HomeSection
-     * navigation.switchTo(SeriesTab)
      * ```
      */
     fun switchTo(section: NavSection)
+
+    /**
+     * Switch to the given [destination] directly, without pushing onto the back stack.
+     *
+     * Unlike [navigateTo], this replaces the current entry in-place.
+     * The user cannot navigate back to the previous screen with [navigateUp].
+     *
+     * Use this for tab switching where the destination is not wrapped in its own section.
+     *
+     * ```kotlin
+     * navigation.switchTo(MovieScreenDestination)
+     * navigation.switchTo(SeriesScreenDestination)
+     * ```
+     */
+    fun <D : NavDestination> switchTo(destination: D)
 
     /**
      * Pop a single entry from the back stack.

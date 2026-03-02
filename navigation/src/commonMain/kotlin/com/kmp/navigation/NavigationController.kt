@@ -10,19 +10,20 @@ import kotlin.reflect.KClass
  * section-aware switching.
  *
  * - [navigateTo] pushes destinations onto the back stack → navigateUp() works.
- * - [switchTo] replaces the current back stack entry in-place → no back navigation.
+ * - [switchTo] (section) replaces the entire stack with the last visited destination of that section.
+ * - [switchTo] (destination) replaces the current stack entry in-place → no back navigation.
  * - [navigateUp] pops the top entry, no-op if only one entry remains.
  *
  * Example flow:
  *
  * ```
- * switchTo(HomeSection)           → Stack: [MovieScreen]
- * navigateTo(MovieContentList)    → Stack: [MovieScreen, MovieContentList]
- * navigateUp()                    → Stack: [MovieScreen]
- * switchTo(SeriesTab inside Home) → Stack: [SeriesScreen]
- * switchTo(SettingsSection)       → Stack: [SettingsScreen]
- * switchTo(HomeSection)           → Stack: [SeriesScreen]  ← last tab restored
- * navigateUp()                    → no-op (stack size = 1)
+ * switchTo(HomeSection)              → Stack: [MovieScreenDestination]
+ * navigateTo(PopularMovieDestination) → Stack: [MovieScreenDestination, PopularMovieDestination]
+ * navigateUp()                       → Stack: [MovieScreenDestination]
+ * switchTo(SeriesScreenDestination)  → Stack: [SeriesScreenDestination]
+ * switchTo(SettingsSection)          → Stack: [SettingsScreenDestination]
+ * switchTo(HomeSection)              → Stack: [MovieScreenDestination] ← last tab restored
+ * navigateUp()                       → no-op (stack size = 1)
  * ```
  */
 class NavigationController : Navigation {
@@ -41,10 +42,7 @@ class NavigationController : Navigation {
 
     private var destinationSections: Map<KClass<out NavDestination>, NavSection> = emptyMap()
     private var sectionRoots: Map<NavSection, NavDestination> = emptyMap()
-
-    // section -> last visited destination of that section
     private val lastDestinationPerSection = mutableMapOf<NavSection, NavDestination>()
-
     private var lastEvent: NavigationEvent = NavigationEvent.Idle
 
     internal fun configureSections(
@@ -111,12 +109,33 @@ class NavigationController : Navigation {
             ?: sectionRoots[section]
             ?: run { updateState(); return }
 
-        // No back stack push – replace the entire stack with just this destination.
-        // The user cannot navigate back past a switchTo().
         backStack.clear()
         backStack += target
 
         sectionOf(target)?.let { lastDestinationPerSection[it] = target }
+        updateState()
+    }
+
+    override fun <D : NavDestination> switchTo(destination: D) {
+        lastEvent = NavigationEvent.SwitchTo
+
+        // Replace the last entry of the same section in-place,
+        // or replace the entire stack if no matching section entry exists.
+        val section = sectionOf(destination)
+        val lastIndexInSection = if (section != null) {
+            backStack.indexOfLast { sectionOf(it) == section }
+        } else -1
+
+        if (lastIndexInSection >= 0) {
+            // Keep everything up to that index, replace the entry
+            backStack.subList(lastIndexInSection, backStack.size).clear()
+            backStack += destination
+        } else {
+            backStack.clear()
+            backStack += destination
+        }
+
+        section?.let { lastDestinationPerSection[it] = destination }
         updateState()
     }
 
