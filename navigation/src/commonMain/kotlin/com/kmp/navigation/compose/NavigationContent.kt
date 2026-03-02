@@ -15,25 +15,27 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.kmp.navigation.GlobalNavigation
-import com.kmp.navigation.NavDestination
 import com.kmp.navigation.NavSection
 import com.kmp.navigation.NavigationEvent
 import com.kmp.navigation.NavigationGraph
 
 /**
  * Root-level NavigationContent – renders whatever destination is currently
- * active, regardless of section. Place this once at the very top of your app.
+ * active, regardless of section.
+ *
+ * Use this when a destination does not belong to any section, or once at
+ * the very top of your app as the outermost navigation host.
  *
  * ```kotlin
  * @Composable
  * fun App() {
- *     NavigationContent(modifier = Modifier.fillMaxSize())
+ *     RootNavigationContent(modifier = Modifier.fillMaxSize())
  * }
  * ```
  */
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun NavigationContent(
+fun RootNavigationContent(
     modifier: Modifier = Modifier
 ) {
     val navState by GlobalNavigation.controller.state.collectAsState()
@@ -60,7 +62,7 @@ fun NavigationContent(
                 fadeIn().togetherWith(fadeOut())
             }.using(SizeTransform(clip = true))
         },
-        label = "NavigationContent"
+        label = "RootNavigationContent"
     ) { destination ->
         val screen = NavigationGraph.findScreen(destination)
             ?: error("No screen registered for ${destination::class.simpleName}. Did you call registerNavigation()?")
@@ -72,7 +74,7 @@ fun NavigationContent(
 
 /**
  * Section-scoped NavigationContent – only renders destinations that belong
- * to section [S] or any of its nested sub-sections.
+ * to section [S] or any of its nested subsections.
  *
  * Place this inside the shell screen that owns section [S].
  *
