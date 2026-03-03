@@ -2,13 +2,8 @@ package com.kmp.navigation
 
 import androidx.compose.runtime.Composable
 import co.touchlab.kermit.Logger
-import com.kmp.navigation.GlobalNavigation.controller
 import kotlin.reflect.KClass
 
-/**
- * Global registry mapping destinations to their Composable content
- * and tracking section hierarchy.
- */
 object NavigationGraph {
 
     private val screens =
@@ -21,8 +16,6 @@ object NavigationGraph {
         mutableMapOf<NavSection, Int>()
     private val sectionParents =
         mutableMapOf<NavSection, NavSection>()
-
-    private var configured = false
 
     fun configureNavigationGraph(
         startDestination: NavDestination,
@@ -60,20 +53,17 @@ object NavigationGraph {
 
         dsl.builder()
 
-        configured = true
-
-        controller.configureSections(
+        GlobalNavigation.controller.configureSections(
             destinationToSection = destinationSections.toMap(),
             sectionRoots = sectionRoots.toMap(),
             parentSections = sectionParents.toMap(),
             sectionIndices = sectionIndices.toMap()
         )
 
-        val controller = controller
+        val controller = GlobalNavigation.controller
         if (controller.backStack.isEmpty()) {
             val startSection = destinationSections[startDestination::class]
             if (startSection != null) {
-                // Manually pre-populate lastTabPerSection before switchTo
                 controller.setInitialTab(startSection, startDestination)
                 controller.switchTo(startSection)
             } else {
@@ -84,23 +74,8 @@ object NavigationGraph {
 
     fun findScreen(
         destination: NavDestination
-    ): (@Composable (NavDestination) -> Unit)? =
-        screens[destination::class]
+    ): (@Composable (NavDestination) -> Unit)? = screens[destination::class]
 
-    fun isSectionShellRoot(
-        destination: NavDestination,
-        sectionClass: KClass<out NavSection>
-    ): Boolean {
-        val section = sectionRoots.keys.firstOrNull { it::class == sectionClass }
-            ?: return false
-        val root = sectionRoots[section] ?: return false
-        return destination::class == root::class
-    }
-
-    internal fun sectionIndexFor(destination: NavDestination): Int? {
-        val section = destinationSections[destination::class] ?: return null
-        return sectionIndices[section]
-    }
     fun destinationBelongsToSectionScope(
         destination: NavDestination,
         sectionClass: KClass<out NavSection>
@@ -108,6 +83,13 @@ object NavigationGraph {
         val destSection = destinationSections[destination::class] ?: return false
         return isSectionOrDescendant(destSection, sectionClass)
     }
+
+    /**
+     * Returns the section instance for the given KClass.
+     * Used by NavigationContent to find the correct section.
+     */
+    fun sectionInstanceFor(sectionClass: KClass<out NavSection>): NavSection? =
+        sectionRoots.keys.firstOrNull { it::class == sectionClass }
 
     private fun isSectionOrDescendant(
         candidate: NavSection,

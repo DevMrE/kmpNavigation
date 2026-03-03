@@ -19,7 +19,6 @@ class NavigationController : Navigation {
     private var parentSections: Map<NavSection, NavSection> = emptyMap()
     private var sectionIndices: Map<NavSection, Int> = emptyMap()
 
-    // Stores last TAB destination per section (never stores shell roots)
     private val lastTabPerSection = mutableMapOf<NavSection, NavDestination>()
 
     private var lastEvent: NavigationEvent = NavigationEvent.Idle
@@ -43,6 +42,43 @@ class NavigationController : Navigation {
     private fun isShellRoot(destination: NavDestination): Boolean =
         sectionRoots.values.any { it::class == destination::class }
 
+    /**
+     * Returns the filtered substack for a given section.
+     * Used by NavigationContent<S> to feed into NavDisplay.
+     */
+    fun subStackFor(section: NavSection): List<NavDestination> {
+        // Find shell root index for this section
+        val shellRootIndex = backStack.indexOfFirst { dest ->
+            sectionRoots[section]?.let { it::class == dest::class } == true
+        }
+        if (shellRootIndex < 0) return emptyList()
+
+        // Return everything from shellRoot+1 until we hit the next sibling shell root
+        val result = mutableListOf<NavDestination>()
+        for (i in shellRootIndex + 1 until backStack.size) {
+            val dest = backStack[i]
+            // Stop if we hit a shell root of a different section at the same level
+            if (isShellRoot(dest) && sectionOf(dest) != section) break
+            if (sectionBelongsToScope(sectionOf(dest), section)) {
+                result.add(dest)
+            }
+        }
+        return result
+    }
+
+    private fun sectionBelongsToScope(candidate: NavSection?, scope: NavSection): Boolean {
+        if (candidate == null) return false
+        if (candidate == scope) return true
+        val parent = parentSections[candidate] ?: return false
+        return sectionBelongsToScope(parent, scope)
+    }
+
+    internal fun setInitialTab(section: NavSection, destination: NavDestination) {
+        if (!isShellRoot(destination)) {
+            lastTabPerSection[section] = destination
+        }
+    }
+
     private fun updateState() {
         val current = backStack.lastOrNull()
         _state.value = NavigationState(
@@ -59,31 +95,22 @@ class NavigationController : Navigation {
         options: NavOptions.() -> Unit
     ) {
         val navOptions = NavOptions().apply(options)
-
-        if (navOptions.singleTop && backStack.lastOrNull()?.let { it::class == destination::class } == true) {
-            return
-        }
+        if (navOptions.singleTop && backStack.lastOrNull()?.let { it::class == destination::class } == true) return
 
         lastEvent = NavigationEvent.NavigateTo
         lastTransition = navOptions.transition ?: NavTransitions.fade
 
         backStack.add(destination)
-
-        // Only save as last tab if it's NOT a shell root
         if (!isShellRoot(destination)) {
             sectionOf(destination)?.let { lastTabPerSection[it] = destination }
         }
-
         updateState()
     }
 
     override fun switchTo(section: NavSection, transition: NavTransitionSpec?) {
-        Logger.i("NavController") { "switchTo(navSection): $section" }
-        Logger.i("NavController") { "backStack before: $backStack" }
-
         val shellChain = buildShellChain(section)
         if (shellChain.isEmpty()) {
-            Logger.w("NavigationController") { "switchTo($section): Could not build shell chain." }
+            Logger.w("NavigationController") { "switchTo($section): empty shell chain." }
             return
         }
 
@@ -96,27 +123,20 @@ class NavigationController : Navigation {
         backStack.clear()
         backStack.addAll(shellChain)
 
-        // Save last tab for each section in chain (skip shell roots)
         shellChain.forEach { dest ->
             if (!isShellRoot(dest)) {
                 sectionOf(dest)?.let { lastTabPerSection[it] = dest }
             }
         }
-
-        Logger.i("NavController") { "backStack after: $backStack" }
         updateState()
     }
 
     override fun <D : NavDestination> switchTo(destination: D, transition: NavTransitionSpec?) {
-        Logger.i("NavController") { "switchTo(destination): $destination" }
-        Logger.i("NavController") { "backStack before: $backStack" }
-
         val section = sectionOf(destination)
 
         lastEvent = NavigationEvent.SwitchTo
         lastTransition = transition ?: NavTransitions.fade
 
-        // Find the shell root index of this destination's section in the stack
         val shellRootIndex = if (section != null) {
             backStack.indexOfFirst { dest ->
                 sectionRoots[section]?.let { it::class == dest::class } == true
@@ -124,7 +144,6 @@ class NavigationController : Navigation {
         } else -1
 
         if (shellRootIndex >= 0) {
-            // Remove everything after the shell root and add the new destination
             val removeFrom = shellRootIndex + 1
             repeat(backStack.size - removeFrom) {
                 if (backStack.size > removeFrom) backStack.removeAt(removeFrom)
@@ -135,19 +154,14 @@ class NavigationController : Navigation {
             backStack.add(destination)
         }
 
-        // Save as last tab (never a shell root here)
         section?.let { lastTabPerSection[it] = destination }
-
-        Logger.i("NavController") { "backStack after: $backStack" }
         updateState()
     }
 
     override fun navigateUp() {
         if (backStack.size <= 1) return
-
         lastEvent = NavigationEvent.NavigateUp
         lastTransition = NavTransitions.fade
-
         backStack.removeLastOrNull()
         updateState()
     }
@@ -158,13 +172,10 @@ class NavigationController : Navigation {
             Logger.w("NavigationController") { "popBackTo: ${destination::class.simpleName} not found." }
             return
         }
-
         lastEvent = NavigationEvent.PopBackTo
         lastTransition = NavTransitions.fade
-
         val removeFrom = if (inclusive) idx else idx + 1
         if (removeFrom >= backStack.size) return
-
         repeat(backStack.size - removeFrom) {
             if (backStack.size > removeFrom) backStack.removeAt(removeFrom)
         }
@@ -174,22 +185,18 @@ class NavigationController : Navigation {
     override fun popBackTo(section: NavSection, inclusive: Boolean) {
         val root = sectionRoots[section]
         if (root == null) {
-            Logger.w("NavigationController") { "popBackTo(section): No root found for $section." }
+            Logger.w("NavigationController") { "popBackTo(section): No root for $section." }
             return
         }
-
         val idx = backStack.indexOfLast { it::class == root::class }
         if (idx < 0) {
-            Logger.w("NavigationController") { "popBackTo(section): Root not found in backStack." }
+            Logger.w("NavigationController") { "popBackTo(section): root not in stack." }
             return
         }
-
         lastEvent = NavigationEvent.PopBackTo
         lastTransition = NavTransitions.fade
-
         val removeFrom = if (inclusive) idx else idx + 1
         if (removeFrom >= backStack.size) return
-
         repeat(backStack.size - removeFrom) {
             if (backStack.size > removeFrom) backStack.removeAt(removeFrom)
         }
@@ -199,27 +206,14 @@ class NavigationController : Navigation {
     override fun <D : NavDestination> clearStackAndNavigate(destination: D) {
         lastEvent = NavigationEvent.ClearStack
         lastTransition = NavTransitions.fade
-
         backStack.clear()
         backStack.add(destination)
-
         if (!isShellRoot(destination)) {
             sectionOf(destination)?.let { lastTabPerSection[it] = destination }
         }
-
         updateState()
     }
 
-    /**
-     * Builds the full shell chain from outermost ancestor down to [targetSection].
-     *
-     * Example: switchTo(HomeSection) where HomeSection ⊂ AppRootSection:
-     * → [AppRootDestination, HomeDestination, MovieDestination]
-     *
-     * The last Tab destination of [targetSection] is restored.
-     * If never visited, the first non-shell-root destination registered
-     * for that section is used as fallback.
-     */
     private fun buildShellChain(targetSection: NavSection): List<NavDestination> {
         val chain = mutableListOf<NavSection>()
         var current: NavSection? = targetSection
@@ -227,18 +221,11 @@ class NavigationController : Navigation {
             chain.add(0, current)
             current = parentSections[current]
         }
-
         return chain.mapNotNull { section ->
             if (section == targetSection) {
-                // Restore last tab – but never restore a shell root
                 val lastTab = lastTabPerSection[section]
-                if (lastTab != null && !isShellRoot(lastTab)) {
-                    lastTab
-                } else {
-                    // No last tab known – use section root (shell root)
-                    // NavigationContent will show nothing until user picks a tab
-                    sectionRoots[section]
-                }
+                if (lastTab != null && !isShellRoot(lastTab)) lastTab
+                else sectionRoots[section]
             } else {
                 sectionRoots[section]
             }
@@ -252,15 +239,5 @@ class NavigationController : Navigation {
         val fromIndex = fromSection?.let { sectionIndices[it] } ?: return NavTransitions.fade
         val toIndex = sectionIndices[toSection] ?: return NavTransitions.fade
         return if (toIndex > fromIndex) NavTransitions.slideInFromRight else NavTransitions.slideInFromLeft
-    }
-
-    /**
-     * Pre-populates lastTabPerSection for the initial start destination
-     * so that switchTo(section) always restores the correct tab on first visit.
-     */
-    internal fun setInitialTab(section: NavSection, destination: NavDestination) {
-        if (!isShellRoot(destination)) {
-            lastTabPerSection[section] = destination
-        }
     }
 }
