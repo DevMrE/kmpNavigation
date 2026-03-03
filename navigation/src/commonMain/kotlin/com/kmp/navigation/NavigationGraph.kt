@@ -11,6 +11,8 @@ object NavigationGraph {
         mutableMapOf<KClass<out NavDestination>, NavSection>()
     private val sectionRoots =
         mutableMapOf<NavSection, NavDestination>()
+    private val sectionDefaults =
+        mutableMapOf<NavSection, NavDestination>()
     private val sectionIndices =
         mutableMapOf<NavSection, Int>()
     private val sectionParents =
@@ -23,6 +25,7 @@ object NavigationGraph {
         screens.clear()
         destinationSections.clear()
         sectionRoots.clear()
+        sectionDefaults.clear()
         sectionIndices.clear()
         sectionParents.clear()
 
@@ -31,7 +34,9 @@ object NavigationGraph {
         val dsl = RegisterNavigationBuilder(
             registerScreen = { key, screenData ->
                 if (screens.containsKey(key)) {
-                    Logger.w("NavigationGraph") { "${key.simpleName} already registered – skipping." }
+                    Logger.w("NavigationGraph") {
+                        "${key.simpleName} already registered – skipping."
+                    }
                 } else {
                     screens[key] = screenData
                 }
@@ -39,22 +44,32 @@ object NavigationGraph {
             registerDestinationSection = { key, section ->
                 destinationSections[key] = section
             },
-            registerSectionRoot = { section, root, parent, _ ->
+            registerSectionRoot = { section, root, default, parent ->
                 sectionRoots[section] = root
+                if (default != null) sectionDefaults[section] = default
                 if (!sectionIndices.containsKey(section)) {
                     sectionIndices[section] = nextIndex++
                 }
-                if (parent != null) {
-                    sectionParents[section] = parent
-                }
+                if (parent != null) sectionParents[section] = parent
             }
         )
 
         dsl.builder()
 
+        Logger.i("NavigationGraph") {
+            "Configured sections: ${sectionRoots.keys.map { it::class.simpleName }}"
+        }
+        Logger.i("NavigationGraph") {
+            "Section defaults: ${sectionDefaults.map { "${it.key::class.simpleName} → ${it.value::class.simpleName}" }}"
+        }
+        Logger.i("NavigationGraph") {
+            "Section parents: ${sectionParents.map { "${it.key::class.simpleName} → ${it.value::class.simpleName}" }}"
+        }
+
         GlobalNavigation.controller.configureSections(
             destinationToSection = destinationSections.toMap(),
             sectionRoots = sectionRoots.toMap(),
+            sectionDefaults = sectionDefaults.toMap(),
             parentSections = sectionParents.toMap(),
             sectionIndices = sectionIndices.toMap()
         )

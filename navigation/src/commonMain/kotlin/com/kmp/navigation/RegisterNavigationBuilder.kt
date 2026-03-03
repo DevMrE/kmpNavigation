@@ -11,17 +11,28 @@ import kotlin.reflect.KClass
 class RegisterNavigationBuilder @PublishedApi internal constructor(
     @PublishedApi internal val registerScreen: (KClass<out NavDestination>, NavScreenData) -> Unit,
     @PublishedApi internal val registerDestinationSection: (KClass<out NavDestination>, NavSection) -> Unit,
-    @PublishedApi internal val registerSectionRoot: (NavSection, NavDestination, NavSection?, Boolean) -> Unit,
+    @PublishedApi internal val registerSectionRoot: (NavSection, NavDestination, NavDestination?, NavSection?) -> Unit,
     @PublishedApi internal val currentSection: NavSection? = null
 ) {
 
+    /**
+     * Declares a section with an optional default destination.
+     *
+     * ```kotlin
+     * section(HomeScreenSection, HomeScreenDestination, default = MovieScreenDestination) {
+     *     screen<HomeScreenDestination> { HomeScreen() }
+     *     screen<MovieScreenDestination> { MovieScreen() }
+     *     screen<SeriesScreenDestination> { SeriesScreen() }
+     * }
+     * ```
+     */
     inline fun <reified S : NavSection> section(
         section: S,
         root: NavDestination,
-        overlay: Boolean = false,
+        default: NavDestination? = null,
         noinline builder: RegisterNavigationBuilder.() -> Unit
     ) {
-        registerSectionRoot(section, root, currentSection, overlay)
+        registerSectionRoot(section, root, default, currentSection)
         RegisterNavigationBuilder(
             registerScreen = registerScreen,
             registerDestinationSection = registerDestinationSection,
@@ -31,25 +42,17 @@ class RegisterNavigationBuilder @PublishedApi internal constructor(
     }
 
     /**
-     * Register a screen with optional per-destination animations.
+     * Registers a screen with optional per-destination animations.
      *
      * ```kotlin
-     * // Default animations
-     * screen<HomeDestination> { HomeScreen() }
+     * screen<MovieScreenDestination> { MovieScreen() }
      *
-     * // Custom animations for this specific destination
-     * screen<DetailDestination>(
+     * screen<DetailNavDestination>(
      *     transitionSpec = {
      *         slideInVertically { it } + fadeIn() togetherWith
      *         slideOutVertically { -it } + fadeOut()
-     *     },
-     *     popTransitionSpec = {
-     *         slideInVertically { -it } + fadeIn() togetherWith
-     *         slideOutVertically { it } + fadeOut()
      *     }
-     * ) { dest ->
-     *     DetailScreen(dest.id)
-     * }
+     * ) { dest -> DetailScreen(dest.id) }
      * ```
      */
     inline fun <reified D : NavDestination> screen(
@@ -65,17 +68,14 @@ class RegisterNavigationBuilder @PublishedApi internal constructor(
             }
             return
         }
-
         registerDestinationSection(D::class, section)
         registerScreen(
-            D::class, NavScreenData(
+            D::class,
+            NavScreenData(
                 content = { dest ->
-                    if (dest is D) {
-                        content(dest)
-                    } else {
-                        Logger.w("RegisterNavigationBuilder") {
-                            "Type mismatch for ${D::class.simpleName} – skipping render."
-                        }
+                    if (dest is D) content(dest)
+                    else Logger.w("RegisterNavigationBuilder") {
+                        "Type mismatch for ${D::class.simpleName} – skipping render."
                     }
                 },
                 transitionSpec = transitionSpec,

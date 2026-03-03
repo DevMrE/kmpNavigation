@@ -6,9 +6,8 @@ package com.kmp.navigation
  * Used internally by Compose helpers and NavigationGraph.
  * In production, prefer injecting [Navigation] via Koin.
  */
-object GlobalNavigation {
-
-    val navigation: Navigation = NavigationFactory.create()
+data object GlobalNavigation {
+    val navigation: Navigation = NavigationController()
 
     val controller: NavigationController
         get() = navigation as NavigationController

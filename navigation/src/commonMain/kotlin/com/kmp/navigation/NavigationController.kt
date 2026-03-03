@@ -16,6 +16,7 @@ class NavigationController : Navigation {
 
     private var destinationSections: Map<KClass<out NavDestination>, NavSection> = emptyMap()
     private var sectionRoots: Map<NavSection, NavDestination> = emptyMap()
+    private var sectionDefaults: Map<NavSection, NavDestination> = emptyMap()
     internal var parentSections: Map<NavSection, NavSection> = emptyMap()
         private set
     private var sectionIndices: Map<NavSection, Int> = emptyMap()
@@ -28,11 +29,13 @@ class NavigationController : Navigation {
     internal fun configureSections(
         destinationToSection: Map<KClass<out NavDestination>, NavSection>,
         sectionRoots: Map<NavSection, NavDestination>,
+        sectionDefaults: Map<NavSection, NavDestination>,
         parentSections: Map<NavSection, NavSection>,
         sectionIndices: Map<NavSection, Int>
     ) {
         this.destinationSections = destinationToSection
         this.sectionRoots = sectionRoots
+        this.sectionDefaults = sectionDefaults
         this.parentSections = parentSections
         this.sectionIndices = sectionIndices
     }
@@ -40,23 +43,29 @@ class NavigationController : Navigation {
     internal fun sectionOf(destination: NavDestination): NavSection? =
         destinationSections[destination::class]
 
+    internal fun parentSectionOf(section: NavSection): NavSection? =
+        parentSections[section]
+
     private fun isShellRoot(destination: NavDestination): Boolean =
         sectionRoots.values.any { it::class == destination::class }
 
     /**
-     * Builds the initial back stack from scratch based on the startDestination.
+     * Builds the initial back stack.
      *
-     * Example with startDestination = MovieScreenDestination:
-     * → [AppRootDestination, HomeScreenDestination, MovieScreenDestination]
+     * startDestination = AppRootDestination:
+     * → AppRootDestination
+     * AppRootSection SubStack → [] → triggers default → [HomeScreenDestination, MovieScreenDestination]
      */
     internal fun buildInitialStack(startDestination: NavDestination) {
+        backStack.clear()
+
         val startSection = sectionOf(startDestination) ?: run {
             backStack.add(startDestination)
             updateState()
             return
         }
 
-        // Build ancestor chain: [AppRootSection, HomeScreenSection]
+        // Build full ancestor chain
         val sectionChain = mutableListOf<NavSection>()
         var current: NavSection? = startSection
         while (current != null) {
@@ -64,53 +73,92 @@ class NavigationController : Navigation {
             current = parentSections[current]
         }
 
-        // Push shell roots for all ancestors except the deepest section
+        // Push shell roots for all ancestors
         sectionChain.dropLast(1).forEach { ancestorSection ->
             sectionRoots[ancestorSection]?.let { backStack.add(it) }
         }
 
-        // Push startDestination itself
+        // Push startDestination
         backStack.add(startDestination)
 
-        // Save as last tab so switchTo restores correctly later
-        if (!isShellRoot(startDestination)) {
+        // If startDestination is a shell root, push the default of that section
+        if (isShellRoot(startDestination)) {
+            pushSectionDefault(startSection)
+        } else {
             lastTabPerSection[startSection] = startDestination
+        }
+
+        Logger.i("NavigationController") {
+            "buildInitialStack → backStack: $backStack"
         }
 
         updateState()
     }
 
     /**
-     * Returns the sub-stack for a given section.
+     * Pushes the default destination of a section onto the stack.
+     * If no default is set, pushes the shell root of the first child section.
+     */
+    private fun pushSectionDefault(section: NavSection) {
+        val default = sectionDefaults[section] ?: return
+        backStack.add(default)
+
+        val defaultSection = sectionOf(default)
+        if (defaultSection != null && defaultSection != section) {
+            // Default belongs to a child section – push its default too if needed
+            if (isShellRoot(default)) {
+                pushSectionDefault(defaultSection)
+            } else {
+                lastTabPerSection[defaultSection] = default
+            }
+        } else if (defaultSection == section && isShellRoot(default)) {
+            pushSectionDefault(section)
+        } else if (defaultSection != null) {
+            lastTabPerSection[defaultSection] = default
+        }
+    }
+
+    /**
+     * Returns the substack for rendering in NavigationContent<S>.
      *
-     * Only returns destinations that directly belong to [section].
-     * Nested sections are handled by their own NavigationContent.
+     * Example:
+     * Stack: [AppRootDestination, HomeScreenDestination, MovieScreenDestination]
+     * subStackFor(AppRootSection)    → HomeScreenDestination
+     * subStackFor(HomeScreenSection) → MovieScreenDestination
      */
     internal fun subStackFor(section: NavSection): List<NavDestination> {
         val root = sectionRoots[section] ?: return emptyList()
+        val sectionParent = parentSections[section]
 
         val shellRootIndex = backStack.indexOfFirst { it::class == root::class }
-        if (shellRootIndex < 0) return emptyList()
+        if (shellRootIndex < 0) {
+            Logger.w("NavigationController") {
+                "subStackFor(${section::class.simpleName}): shell root not found in backStack."
+            }
+            return emptyList()
+        }
 
         val result = mutableListOf<NavDestination>()
-        val sectionParent = parentSections[section]
 
         for (i in shellRootIndex + 1 until backStack.size) {
             val dest = backStack[i]
             val destSection = sectionOf(dest) ?: continue
             val destParent = parentSections[destSection]
 
-            // Stop if we hit a sibling section at the same level
+            // Stop if sibling section at same level
             if (destParent == sectionParent && destSection != section) break
 
-            // Only include destinations that directly belong to this section
-            // Nested section destinations are handled by their own NavigationContent
+            // Only direct children of this section
             if (destSection == section) {
                 result.add(dest)
             } else {
-                // Deeper nested section – stop here
+                // Deeper nested – stop, their own NavigationContent handles it
                 break
             }
+        }
+
+        Logger.d("NavigationController") {
+            "subStackFor(${section::class.simpleName}) → $result"
         }
 
         return result
@@ -143,6 +191,11 @@ class NavigationController : Navigation {
         if (!isShellRoot(destination)) {
             sectionOf(destination)?.let { lastTabPerSection[it] = destination }
         }
+
+        Logger.i("NavigationController") {
+            "navigateTo(${destination::class.simpleName}) → backStack: $backStack"
+        }
+
         updateState()
     }
 
@@ -167,6 +220,11 @@ class NavigationController : Navigation {
                 sectionOf(dest)?.let { lastTabPerSection[it] = dest }
             }
         }
+
+        Logger.i("NavigationController") {
+            "switchTo(section=${section::class.simpleName}) → backStack: $backStack"
+        }
+
         updateState()
     }
 
@@ -194,6 +252,11 @@ class NavigationController : Navigation {
         }
 
         section?.let { lastTabPerSection[it] = destination }
+
+        Logger.i("NavigationController") {
+            "switchTo(destination=${destination::class.simpleName}) → backStack: $backStack"
+        }
+
         updateState()
     }
 
@@ -202,13 +265,20 @@ class NavigationController : Navigation {
         lastEvent = NavigationEvent.NavigateUp
         lastTransition = NavTransitions.fade
         backStack.removeLastOrNull()
+
+        Logger.i("NavigationController") {
+            "navigateUp() → backStack: $backStack"
+        }
+
         updateState()
     }
 
     override fun <D : NavDestination> popBackTo(destination: D, inclusive: Boolean) {
         val idx = backStack.indexOfLast { it::class == destination::class }
         if (idx < 0) {
-            Logger.w("NavigationController") { "popBackTo: ${destination::class.simpleName} not found." }
+            Logger.w("NavigationController") {
+                "popBackTo: ${destination::class.simpleName} not found."
+            }
             return
         }
         lastEvent = NavigationEvent.PopBackTo
@@ -218,18 +288,27 @@ class NavigationController : Navigation {
         repeat(backStack.size - removeFrom) {
             if (backStack.size > removeFrom) backStack.removeAt(removeFrom)
         }
+
+        Logger.i("NavigationController") {
+            "popBackTo(${destination::class.simpleName}, inclusive=$inclusive) → backStack: $backStack"
+        }
+
         updateState()
     }
 
     override fun popBackTo(section: NavSection, inclusive: Boolean) {
         val root = sectionRoots[section]
         if (root == null) {
-            Logger.w("NavigationController") { "popBackTo(section): No root for $section." }
+            Logger.w("NavigationController") {
+                "popBackTo(section): No root for $section."
+            }
             return
         }
         val idx = backStack.indexOfLast { it::class == root::class }
         if (idx < 0) {
-            Logger.w("NavigationController") { "popBackTo(section): root not in stack." }
+            Logger.w("NavigationController") {
+                "popBackTo(section): root not in stack."
+            }
             return
         }
         lastEvent = NavigationEvent.PopBackTo
@@ -239,6 +318,11 @@ class NavigationController : Navigation {
         repeat(backStack.size - removeFrom) {
             if (backStack.size > removeFrom) backStack.removeAt(removeFrom)
         }
+
+        Logger.i("NavigationController") {
+            "popBackTo(section=${section::class.simpleName}, inclusive=$inclusive) → backStack: $backStack"
+        }
+
         updateState()
     }
 
@@ -250,6 +334,11 @@ class NavigationController : Navigation {
         if (!isShellRoot(destination)) {
             sectionOf(destination)?.let { lastTabPerSection[it] = destination }
         }
+
+        Logger.i("NavigationController") {
+            "clearStackAndNavigate(${destination::class.simpleName}) → backStack: $backStack"
+        }
+
         updateState()
     }
 
@@ -260,15 +349,28 @@ class NavigationController : Navigation {
             chain.add(0, current)
             current = parentSections[current]
         }
-        return chain.mapNotNull { section ->
+
+        val result = mutableListOf<NavDestination>()
+
+        chain.forEach { section ->
             if (section == targetSection) {
                 val lastTab = lastTabPerSection[section]
-                if (lastTab != null && !isShellRoot(lastTab)) lastTab
-                else sectionRoots[section]
+                val dest = if (lastTab != null && !isShellRoot(lastTab)) {
+                    lastTab
+                } else {
+                    sectionDefaults[section] ?: sectionRoots[section]
+                }
+                dest?.let { result.add(it) }
             } else {
-                sectionRoots[section]
+                sectionRoots[section]?.let { result.add(it) }
             }
         }
+
+        Logger.i("NavigationController") {
+            "buildShellChain(${targetSection::class.simpleName}) → $result"
+        }
+
+        return result
     }
 
     private fun defaultSwitchTransition(
