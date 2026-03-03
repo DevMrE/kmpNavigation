@@ -1,6 +1,8 @@
 package com.kmp.navigation.compose
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.NavEntry
@@ -147,30 +149,31 @@ internal fun RenderSection(
         slideInHorizontally { -it } + fadeIn() togetherWith
                 slideOutHorizontally { it } + fadeOut()
     }
-
-    NavDisplay(
-        modifier = modifier,
-        backStack = subStack,
-        onBack = { GlobalNavigation.navigation.navigateUp() },
-        entryDecorators = listOf(
-            rememberSaveableStateHolderNavEntryDecorator()
-        ),
-        transitionSpec = transitionSpec ?: defaultTransitionSpec,
-        popTransitionSpec = popTransitionSpec ?: defaultPopTransitionSpec,
-        predictivePopTransitionSpec = predictivePopTransitionSpec
-            ?: defaultPredictivePopTransitionSpec,
-        entryProvider = { destination ->
-            val screenData = NavigationGraph.findScreenWithMetadata(destination)
-            if (screenData == null) {
-                Logger.w("KmpNavigation") {
-                    "No screen registered for ${destination::class.simpleName}."
-                }
-                NavEntry(key = destination) {}
-            } else {
-                NavEntry(key = destination) {
-                    screenData.content(destination)
+    Box(modifier = modifier) {
+        NavDisplay(
+            modifier = Modifier.fillMaxSize(),
+            backStack = subStack,
+            onBack = { GlobalNavigation.navigation.navigateUp() },
+            entryDecorators = listOf(
+                rememberSaveableStateHolderNavEntryDecorator()
+            ),
+            transitionSpec = transitionSpec ?: defaultTransitionSpec,
+            popTransitionSpec = popTransitionSpec ?: defaultPopTransitionSpec,
+            predictivePopTransitionSpec = predictivePopTransitionSpec
+                ?: defaultPredictivePopTransitionSpec,
+            entryProvider = { destination ->
+                val screenData = NavigationGraph.findScreenWithMetadata(destination)
+                if (screenData == null) {
+                    Logger.w("KmpNavigation") {
+                        "No screen registered for ${destination::class.simpleName}."
+                    }
+                    NavEntry(key = destination) {}
+                } else {
+                    NavEntry(key = destination) {
+                        screenData.content(destination)
+                    }
                 }
             }
-        }
-    )
+        )
+    }
 }
