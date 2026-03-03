@@ -140,40 +140,40 @@ internal fun RenderSection(
         }
     }
 
-    val defaultPopTransitionSpec: AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform = {
-        slideInHorizontally { -it } + fadeIn() togetherWith
-                slideOutHorizontally { it } + fadeOut()
+    val defaultPopTransitionSpec: AnimatedContentTransitionScope<Scene<NavDestination>>.() ->
+    ContentTransform = {
+        slideInHorizontally { -it } + fadeIn() togetherWith slideOutHorizontally { it } + fadeOut()
     }
 
-    val defaultPredictivePopTransitionSpec: AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) -> ContentTransform = {
-        slideInHorizontally { -it } + fadeIn() togetherWith
-                slideOutHorizontally { it } + fadeOut()
+    val defaultPredictivePopTransitionSpec: AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) ->
+    ContentTransform = {
+        slideInHorizontally { -it } + fadeIn() togetherWith slideOutHorizontally { it } + fadeOut()
     }
-    Box(modifier = modifier) {
-        NavDisplay(
-            modifier = Modifier.fillMaxSize(),
-            backStack = subStack,
-            onBack = { GlobalNavigation.navigation.navigateUp() },
-            entryDecorators = listOf(
-                rememberSaveableStateHolderNavEntryDecorator()
-            ),
-            transitionSpec = transitionSpec ?: defaultTransitionSpec,
-            popTransitionSpec = popTransitionSpec ?: defaultPopTransitionSpec,
-            predictivePopTransitionSpec = predictivePopTransitionSpec
-                ?: defaultPredictivePopTransitionSpec,
-            entryProvider = { destination ->
-                val screenData = NavigationGraph.findScreenWithMetadata(destination)
-                if (screenData == null) {
-                    Logger.w("KmpNavigation") {
-                        "No screen registered for ${destination::class.simpleName}."
+
+    NavDisplay(
+        modifier = Modifier.fillMaxSize(),
+        backStack = subStack,
+        onBack = { GlobalNavigation.navigation.navigateUp() },
+        entryDecorators = listOf(
+            rememberSaveableStateHolderNavEntryDecorator()
+        ),
+        transitionSpec = transitionSpec ?: defaultTransitionSpec,
+        popTransitionSpec = popTransitionSpec ?: defaultPopTransitionSpec,
+        predictivePopTransitionSpec = predictivePopTransitionSpec
+            ?: defaultPredictivePopTransitionSpec,
+        entryProvider = { destination ->
+            NavEntry(key = destination) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    val screenData = NavigationGraph.findScreenWithMetadata(destination)
+                    if (screenData == null) {
+                        Logger.w("NavigationContent") {
+                            "No screen registered for ${destination::class.simpleName}."
+                        }
+                        return@NavEntry
                     }
-                    NavEntry(key = destination) {}
-                } else {
-                    NavEntry(key = destination) {
-                        screenData.content(destination)
-                    }
+                    screenData.content(destination)
                 }
             }
-        )
-    }
+        }
+    )
 }
