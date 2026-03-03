@@ -15,8 +15,6 @@ object NavigationGraph {
 
     private var configured: Boolean = false
 
-    fun isConfigured(): Boolean = configured
-
     fun debugPrintHierarchy() {
         Logger.i("NavigationGraph") { "=== destinationSections ===" }
         destinationSections.forEach { (k, v) -> Logger.i("NavigationGraph") { "${k.simpleName} -> $v" } }
@@ -67,11 +65,17 @@ object NavigationGraph {
 
         GlobalNavigation.controller.configureSections(
             destinationToSection = destinationSections.toMap(),
-            sectionRoots = sectionRoots.toMap()
+            sectionRoots = sectionRoots.toMap(),
+            parentSections = sectionParents.toMap()
         )
 
         if (GlobalNavigation.controller.state.value.currentDestination == null) {
-            GlobalNavigation.navigation.navigateTo(startDestination) { clearStack() }
+            val startSection = destinationSections[startDestination::class]
+            if (startSection != null) {
+                GlobalNavigation.controller.switchTo(startSection)
+            } else {
+                GlobalNavigation.navigation.navigateTo(startDestination) { clearStack() }
+            }
         }
     }
 
@@ -94,26 +98,16 @@ object NavigationGraph {
 
     /**
      * Returns true if [destination] is the shell root of [sectionClass].
-     *
-     * The shell root is the root destination of the section itself – the one
-     * whose registered screen contains NavigationContent<S>. It must not be
-     * rendered by NavigationContent<S> itself to avoid infinite loops.
+     * Shell roots are skipped by NavigationContent<S> to avoid infinite loops.
      */
     fun isSectionShellRoot(
         destination: NavDestination,
         sectionClass: KClass<out NavSection>
     ): Boolean {
-        // Find the section instance for sectionClass
         val section = sectionRoots.keys.firstOrNull { it::class == sectionClass } ?: return false
         val root = sectionRoots[section] ?: return false
         return destination::class == root::class
     }
-
-    internal fun isOverlaySection(section: NavSection): Boolean =
-        section in overlaySections
-
-    internal fun parentSectionOf(section: NavSection): NavSection? =
-        sectionParents[section]
 
     private fun isSectionOrDescendant(
         candidate: NavSection,

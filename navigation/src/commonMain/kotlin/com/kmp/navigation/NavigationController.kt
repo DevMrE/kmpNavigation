@@ -10,20 +10,18 @@ import kotlin.reflect.KClass
  * section-aware switching.
  *
  * - [navigateTo] pushes destinations onto the back stack → navigateUp() works.
- * - [switchTo] (section) replaces the entire stack with the last visited destination of that section.
- * - [switchTo] (destination) replaces the current stack entry in-place → no back navigation.
+ * - [switchTo] (section) builds a full shell chain and replaces the stack.
+ * - [switchTo] (destination) replaces the current section entry in-place.
  * - [navigateUp] pops the top entry, no-op if only one entry remains.
  *
- * Example flow:
- *
+ * Example stack for HomeScreenSection inside AppRootSection:
  * ```
- * switchTo(HomeSection)              → Stack: [MovieScreenDestination]
- * navigateTo(PopularMovieDestination) → Stack: [MovieScreenDestination, PopularMovieDestination]
- * navigateUp()                       → Stack: [MovieScreenDestination]
- * switchTo(SeriesScreenDestination)  → Stack: [SeriesScreenDestination]
- * switchTo(SettingsSection)          → Stack: [SettingsScreenDestination]
- * switchTo(HomeSection)              → Stack: [MovieScreenDestination] ← last tab restored
- * navigateUp()                       → no-op (stack size = 1)
+ * switchTo(HomeScreenSection)               → Stack: [AppRootDestination, HomeScreenDestination, MovieScreenDestination]
+ * navigateTo(PopularMovieDestination)       → Stack: [AppRootDestination, HomeScreenDestination, MovieScreenDestination, PopularMovieDestination]
+ * navigateUp()                              → Stack: [AppRootDestination, HomeScreenDestination, MovieScreenDestination]
+ * switchTo(SeriesScreenDestination)         → Stack: [AppRootDestination, HomeScreenDestination, SeriesScreenDestination]
+ * switchTo(SettingsSection)                 → Stack: [AppRootDestination, SettingsScreenDestination]
+ * switchTo(HomeScreenSection)               → Stack: [AppRootDestination, HomeScreenDestination, SeriesScreenDestination] ← restored
  * ```
  */
 class NavigationController : Navigation {
@@ -36,21 +34,23 @@ class NavigationController : Navigation {
     )
 
     private val backStack = mutableListOf<NavDestination>()
-
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
 
     private var destinationSections: Map<KClass<out NavDestination>, NavSection> = emptyMap()
     private var sectionRoots: Map<NavSection, NavDestination> = emptyMap()
+    private var parentSections: Map<NavSection, NavSection> = emptyMap()
     private val lastDestinationPerSection = mutableMapOf<NavSection, NavDestination>()
     private var lastEvent: NavigationEvent = NavigationEvent.Idle
 
     internal fun configureSections(
         destinationToSection: Map<KClass<out NavDestination>, NavSection>,
-        sectionRoots: Map<NavSection, NavDestination>
+        sectionRoots: Map<NavSection, NavDestination>,
+        parentSections: Map<NavSection, NavSection>
     ) {
         this.destinationSections = destinationToSection
         this.sectionRoots = sectionRoots
+        this.parentSections = parentSections
     }
 
     private fun sectionOf(destination: NavDestination): NavSection? =
@@ -105,29 +105,28 @@ class NavigationController : Navigation {
     override fun switchTo(section: NavSection) {
         lastEvent = NavigationEvent.SwitchTo
 
-        val target = lastDestinationPerSection[section]
-            ?: sectionRoots[section]
-            ?: run { updateState(); return }
+        val shellChain = buildShellChain(section)
+        if (shellChain.isEmpty()) { updateState(); return }
 
         backStack.clear()
-        backStack += target
+        backStack.addAll(shellChain)
 
-        sectionOf(target)?.let { lastDestinationPerSection[it] = target }
+        shellChain.forEach { destination ->
+            sectionOf(destination)?.let { lastDestinationPerSection[it] = destination }
+        }
+
         updateState()
     }
 
     override fun <D : NavDestination> switchTo(destination: D) {
         lastEvent = NavigationEvent.SwitchTo
 
-        // Replace the last entry of the same section in-place,
-        // or replace the entire stack if no matching section entry exists.
         val section = sectionOf(destination)
         val lastIndexInSection = if (section != null) {
             backStack.indexOfLast { sectionOf(it) == section }
         } else -1
 
         if (lastIndexInSection >= 0) {
-            // Keep everything up to that index, replace the entry
             backStack.subList(lastIndexInSection, backStack.size).clear()
             backStack += destination
         } else {
@@ -154,6 +153,30 @@ class NavigationController : Navigation {
         if (navDestination == null) { navigateUp(); return }
         popToTypeInStack(backStack, navDestination::class, inclusive)
         updateState()
+    }
+
+    /**
+     * Builds a full destination chain from the top-level section root
+     * down to the last visited destination of [targetSection].
+     *
+     * Example: switchTo(HomeScreenSection) where HomeScreenSection is inside AppRootSection:
+     * → [AppRootDestination, HomeScreenDestination, MovieScreenDestination]
+     */
+    private fun buildShellChain(targetSection: NavSection): List<NavDestination> {
+        val sectionChain = mutableListOf<NavSection>()
+        var current: NavSection? = targetSection
+        while (current != null) {
+            sectionChain.add(0, current)
+            current = parentSections[current]
+        }
+
+        return sectionChain.mapNotNull { section ->
+            if (section == targetSection) {
+                lastDestinationPerSection[section] ?: sectionRoots[section]
+            } else {
+                sectionRoots[section]
+            }
+        }
     }
 
     private fun popToTypeInStack(

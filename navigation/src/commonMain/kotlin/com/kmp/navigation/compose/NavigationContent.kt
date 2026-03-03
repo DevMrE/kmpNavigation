@@ -20,13 +20,17 @@ import com.kmp.navigation.NavigationEvent
 import com.kmp.navigation.NavigationGraph
 
 /**
- * Root-level NavigationContent – renders whatever destination is currently
- * active, regardless of section. Place this once at the very top of your app.
+ * Root-level NavigationContent – renders the outermost shell destination.
+ *
+ * Always renders the FIRST entry of the back stack, which is the top-level
+ * shell screen (e.g. AppRootContent).
  *
  * ```kotlin
  * @Composable
- * fun App() {
- *     RootNavigationContent(modifier = Modifier.fillMaxSize())
+ * fun AppScreen() {
+ *     AppTheme {
+ *         RootNavigationContent(modifier = Modifier.fillMaxSize())
+ *     }
  * }
  * ```
  */
@@ -36,7 +40,7 @@ fun RootNavigationContent(
     modifier: Modifier = Modifier
 ) {
     val navState by GlobalNavigation.controller.state.collectAsState()
-    val current = navState.currentDestination ?: return
+    val current = navState.backStack.firstOrNull() ?: return
     val lastEvent = navState.lastEvent
 
     AnimatedContent(
@@ -70,11 +74,11 @@ fun RootNavigationContent(
 }
 
 /**
- * Section-scoped NavigationContent – renders destinations that belong
- * to section [S] or any of its nested subsections.
+ * Section-scoped NavigationContent – renders the active destination within
+ * section [S], skipping the shell root of [S] to avoid infinite loops.
  *
- * The root destination of section [S] itself is treated as the shell marker
- * and is NOT rendered here – it is rendered by whoever calls this composable.
+ * Finds the shell root of [S] in the back stack, then renders the next
+ * entry after it.
  *
  * ```kotlin
  * @Composable
@@ -101,15 +105,13 @@ inline fun <reified S : NavSection> NavigationContent(
     val navState by GlobalNavigation.controller.state.collectAsState()
     val lastEvent = navState.lastEvent
 
-    // Find the best destination to render for this section scope:
-    // Walk the back stack from top to find the first destination that:
-    // 1. Belongs to section S or its sub-sections
-    // 2. Is NOT the shell root of section S itself
-    val current = navState.backStack
-        .lastOrNull { destination ->
-            NavigationGraph.destinationBelongsToSectionScope(destination, S::class)
-                    && !NavigationGraph.isSectionShellRoot(destination, S::class)
-        } ?: return
+    val shellRootIndex = navState.backStack.indexOfFirst { destination ->
+        NavigationGraph.isSectionShellRoot(destination, S::class)
+    }
+
+    val current = if (shellRootIndex >= 0 && shellRootIndex + 1 < navState.backStack.size) {
+        navState.backStack[shellRootIndex + 1]
+    } else return
 
     AnimatedContent(
         modifier = modifier,

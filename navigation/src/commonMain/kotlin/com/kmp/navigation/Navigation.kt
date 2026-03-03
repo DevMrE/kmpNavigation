@@ -20,14 +20,14 @@ interface Navigation {
     /**
      * Switch to the given [section].
      *
-     * Does NOT push onto the back stack – the user cannot navigate back
-     * to the previous section with [navigateUp].
+     * Does NOT push onto the back stack. The full shell chain is built
+     * automatically from the root section down to the target section.
      *
      * The last visited destination of [section] is restored. If the section
      * has never been visited, the configured root destination is used.
      *
      * ```kotlin
-     * navigation.switchTo(HomeSection)
+     * navigation.switchTo(HomeScreenSection)
      * navigation.switchTo(SettingsSection)
      * ```
      */
