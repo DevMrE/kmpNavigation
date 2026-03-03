@@ -250,4 +250,14 @@ class NavigationController : Navigation {
         val toIndex = sectionIndices[toSection] ?: return NavTransitions.fade
         return if (toIndex > fromIndex) NavTransitions.slideInFromRight else NavTransitions.slideInFromLeft
     }
+
+    /**
+     * Pre-populates lastTabPerSection for the initial start destination
+     * so that switchTo(section) always restores the correct tab on first visit.
+     */
+    internal fun setInitialTab(section: NavSection, destination: NavDestination) {
+        if (!isShellRoot(destination)) {
+            lastTabPerSection[section] = destination
+        }
+    }
 }

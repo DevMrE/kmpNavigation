@@ -2,6 +2,7 @@ package com.kmp.navigation
 
 import androidx.compose.runtime.Composable
 import co.touchlab.kermit.Logger
+import com.kmp.navigation.GlobalNavigation.controller
 import kotlin.reflect.KClass
 
 /**
@@ -63,7 +64,7 @@ object NavigationGraph {
 
         configured = true
 
-        GlobalNavigation.controller.configureSections(
+        controller.configureSections(
             destinationToSection = destinationSections.toMap(),
             sectionRoots = sectionRoots.toMap(),
             parentSections = sectionParents.toMap(),
@@ -74,6 +75,8 @@ object NavigationGraph {
         if (controller.backStack.isEmpty()) {
             val startSection = destinationSections[startDestination::class]
             if (startSection != null) {
+                // Manually pre-populate lastTabPerSection before switchTo
+                controller.setInitialTab(startSection, startDestination)
                 controller.switchTo(startSection)
             } else {
                 controller.backStack.add(startDestination)
@@ -100,7 +103,6 @@ object NavigationGraph {
         val section = destinationSections[destination::class] ?: return null
         return sectionIndices[section]
     }
-
     fun destinationBelongsToSectionScope(
         destination: NavDestination,
         sectionClass: KClass<out NavSection>
