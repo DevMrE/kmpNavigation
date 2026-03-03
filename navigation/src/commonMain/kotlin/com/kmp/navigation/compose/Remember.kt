@@ -12,23 +12,17 @@ import com.kmp.navigation.NavigationGraph
 
 /**
  * Returns the singleton [Navigation] instance.
- *
- * ```kotlin
- * @Composable
- * fun BottomBar() {
- *     val navigation = rememberNavigation()
- *     NavigationBarItem(onClick = { navigation.switchTo(HomeSection) })
- * }
- * ```
  */
 @Composable
 fun rememberNavigation(): Navigation =
     remember { GlobalNavigation.navigation }
 
 /**
- * Observes the current [NavDestination].
+ * Observes the current global [NavDestination].
  *
- * Returns [fallback] if no destination is active yet.
+ * Note: This returns the LAST destination in the entire back stack.
+ * For tab highlighting within a section, use
+ * [rememberCurrentDestinationInSection] instead.
  *
  * ```kotlin
  * val destination = rememberNavDestination()
@@ -62,15 +56,24 @@ fun rememberNavSection(
 /**
  * Observes the currently active destination within section [S].
  *
- * Returns the last destination in the back stack that belongs to [S],
- * or null if none found.
+ * Use this for tab highlighting – it returns the last destination
+ * in the back stack that belongs to section [S] or any sub-section of [S].
+ *
+ * This is different from [rememberNavDestination] which returns the global
+ * last destination regardless of section.
  *
  * ```kotlin
- * val currentTab = rememberCurrentDestinationInSection<HomeSection>()
- * TabRow(selectedTabIndex = when (currentTab) {
- *     is MovieDestination -> 0
- *     else -> 1
- * })
+ * // Correct way to highlight tabs in HomeScreen:
+ * val currentTab = rememberCurrentDestinationInSection<HomeScreenSection>()
+ *
+ * SegmentedButton(
+ *     selected = currentTab is MovieScreenDestination,
+ *     onClick = { navigation.switchTo(MovieScreenDestination) }
+ * )
+ * SegmentedButton(
+ *     selected = currentTab is SeriesScreenDestination,
+ *     onClick = { navigation.switchTo(SeriesScreenDestination) }
+ * )
  * ```
  */
 @Composable

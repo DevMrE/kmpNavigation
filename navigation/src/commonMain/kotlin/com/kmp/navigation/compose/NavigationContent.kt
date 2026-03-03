@@ -49,7 +49,12 @@ fun RootNavigationContent(
         targetState = current,
         transitionSpec = {
             transitionSpec?.invoke(initialState, targetState)
-                ?: resolveTransition(navState.lastEvent, navState.lastTransition, initialState, targetState)
+                ?: resolveTransition(
+                    event = navState.lastEvent,
+                    spec = navState.lastTransition,
+                    from = initialState,
+                    to = targetState
+                )
         },
         label = "RootNavigationContent"
     ) { destination ->
@@ -60,9 +65,8 @@ fun RootNavigationContent(
             }
             return@AnimatedContent
         }
-        Box(modifier = Modifier.fillMaxSize()) {
-            screen(destination)
-        }
+        // Do NOT use fillMaxSize here – respect the modifier passed from outside
+        screen(destination)
     }
 }
 
@@ -71,6 +75,9 @@ fun RootNavigationContent(
  *
  * Renders the destination right after the shell root of section [S]
  * in the back stack. Skips the shell root itself to avoid infinite loops.
+ *
+ * The modifier is passed directly to AnimatedContent – do NOT wrap in
+ * fillMaxSize so that constraints from the parent (e.g. weight(1f)) are respected.
  *
  * ```kotlin
  * @Composable
@@ -108,11 +115,17 @@ inline fun <reified S : NavSection> NavigationContent(
     }
 
     AnimatedContent(
+        // Pass modifier directly to AnimatedContent so weight(1f) etc. is respected
         modifier = modifier,
         targetState = current,
         transitionSpec = {
             transitionSpec?.invoke(initialState, targetState)
-                ?: resolveTransition(navState.lastEvent, navState.lastTransition, initialState, targetState)
+                ?: resolveTransition(
+                    event = navState.lastEvent,
+                    spec = navState.lastTransition,
+                    from = initialState,
+                    to = targetState
+                )
         },
         label = "NavigationContent<${S::class.simpleName}>"
     ) { destination ->
@@ -123,6 +136,7 @@ inline fun <reified S : NavSection> NavigationContent(
             }
             return@AnimatedContent
         }
+        // Pass modifier fillMaxSize only to the content box, not AnimatedContent itself
         Box(modifier = Modifier.fillMaxSize()) {
             screen(destination)
         }
