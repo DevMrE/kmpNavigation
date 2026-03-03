@@ -2,7 +2,6 @@ package com.kmp.navigation.compose
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -10,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import co.touchlab.kermit.Logger
 import com.kmp.navigation.GlobalNavigation
 import com.kmp.navigation.NavDestination
@@ -18,7 +18,6 @@ import com.kmp.navigation.NavTransitionSpec
 import com.kmp.navigation.NavigationEvent
 import com.kmp.navigation.NavigationGraph
 
-@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun RootNavigationContent(
     modifier: Modifier = Modifier,
@@ -28,7 +27,7 @@ fun RootNavigationContent(
     val current = navState.backStack.firstOrNull() ?: return
 
     AnimatedContent(
-        modifier = modifier,
+        modifier = modifier.clipToBounds(),
         targetState = current,
         transitionSpec = {
             transitionSpec?.invoke(initialState, targetState)
@@ -52,7 +51,6 @@ fun RootNavigationContent(
     }
 }
 
-@OptIn(ExperimentalAnimationApi::class)
 @Composable
 inline fun <reified S : NavSection> NavigationContent(
     modifier: Modifier = Modifier,
@@ -64,10 +62,6 @@ inline fun <reified S : NavSection> NavigationContent(
         NavigationGraph.isSectionShellRoot(destination, S::class)
     }
 
-    Logger.i("NavigationContent") {
-        "Section: ${S::class.simpleName}, backStack: ${navState.backStack}, shellRootIndex: $shellRootIndex, current: ${if (shellRootIndex >= 0 && shellRootIndex + 1 < navState.backStack.size) navState.backStack[shellRootIndex + 1] else null}"
-    }
-
     val current = if (shellRootIndex >= 0 && shellRootIndex + 1 < navState.backStack.size) {
         navState.backStack[shellRootIndex + 1]
     } else {
@@ -75,7 +69,7 @@ inline fun <reified S : NavSection> NavigationContent(
     }
 
     AnimatedContent(
-        modifier = modifier,
+        modifier = modifier.clipToBounds(),
         targetState = current,
         transitionSpec = {
             transitionSpec?.invoke(initialState, targetState)
@@ -95,8 +89,6 @@ inline fun <reified S : NavSection> NavigationContent(
             }
             return@AnimatedContent
         }
-        // No Box with fillMaxSize – let the screen itself define its size
-        // and respect the constraints passed via modifier from outside
         screen(destination)
     }
 }
