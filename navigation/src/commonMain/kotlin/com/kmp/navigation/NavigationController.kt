@@ -128,7 +128,6 @@ class NavigationController : Navigation {
      */
     internal fun subStackFor(section: NavSection): List<NavDestination> {
         val root = sectionRoots[section] ?: return emptyList()
-        val sectionParent = parentSections[section]
 
         val shellRootIndex = backStack.indexOfFirst { it::class == root::class }
         if (shellRootIndex < 0) {
@@ -143,16 +142,17 @@ class NavigationController : Navigation {
         for (i in shellRootIndex + 1 until backStack.size) {
             val dest = backStack[i]
             val destSection = sectionOf(dest) ?: continue
-            val destParent = parentSections[destSection]
 
-            // Stop if sibling section at same level
-            if (destParent == sectionParent && destSection != section) break
+            // Include if destination's section is a direct child of this section
+            // OR destination belongs directly to this section
+            val destSectionParent = parentSections[destSection]
 
-            // Only direct children of this section
-            if (destSection == section) {
+            if (destSection == section || destSectionParent == section) {
                 result.add(dest)
+                // Only add the FIRST destination per child section
+                // The child NavigationContent handles the rest
+                if (destSectionParent == section) break
             } else {
-                // Deeper nested – stop, their own NavigationContent handles it
                 break
             }
         }
