@@ -6,9 +6,11 @@ package com.kmp.navigation
  * Always implement as a singleton object:
  *
  * ```kotlin
- * object HomeSection : NavSection
- * object SettingsSection : NavSection
- * object DetailSection : NavSection
+ * @Serializable
+ * data object HomeSection : NavSection
+ *
+ * @Serializable
+ * data object SettingsSection : NavSection
  * ```
  */
 interface NavSection

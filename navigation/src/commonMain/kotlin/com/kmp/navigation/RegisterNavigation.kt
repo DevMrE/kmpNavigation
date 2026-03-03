@@ -1,28 +1,27 @@
 package com.kmp.navigation
 
 /**
- * Convenience alias for [NavigationGraph.configureNavigationGraph].
+ * Entry point for configuring the navigation graph.
  *
- * Call this once during app setup before rendering any Compose UI:
+ * Call this once during app startup before rendering any Compose UI.
  *
  * ```kotlin
- * fun registerAppNavigation() {
- *     registerNavigation(startDestination = AppRootDestination) {
+ * fun setupNavigation() {
+ *     registerNavigation(startDestination = MovieDestination) {
+ *         section(AppRootSection, AppRootDestination) {
+ *             screen<AppRootDestination> { AppRootScreen() }
  *
- *         section<AppRootSection>(root = AppRootDestination) {
- *
- *             section<HomeSection>(root = MovieScreenDestination) {
- *                 screen<MovieScreenDestination> { MovieScreen() }
- *                 screen<SeriesScreenDestination> { SeriesScreen() }
+ *             section(HomeSection, HomeDestination) {
+ *                 screen<HomeDestination> { HomeScreen() }
+ *                 screen<MovieDestination> { MovieScreen() }
+ *                 screen<SeriesDestination> { SeriesScreen() }
  *             }
  *
- *             section<SettingsSection>(root = SettingsScreenDestination) {
- *                 screen<SettingsScreenDestination> { SettingsScreen() }
- *             }
+ *             screen<SettingsDestination> { SettingsScreen() }
  *         }
  *
- *         section<DetailSection>(root = DetailScreenDestination(id = ""), overlay = true) {
- *             screen<DetailScreenDestination> { detail -> DetailScreen(detail.id) }
+ *         section(DetailSection, DetailDestination(id = "")) {
+ *             screen<DetailDestination> { dest -> DetailScreen(dest.id) }
  *         }
  *     }
  * }

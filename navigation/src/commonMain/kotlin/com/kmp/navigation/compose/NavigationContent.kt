@@ -1,12 +1,10 @@
 package com.kmp.navigation.compose
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,22 +12,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import co.touchlab.kermit.Logger
 import com.kmp.navigation.GlobalNavigation
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.NavSection
+import com.kmp.navigation.NavTransitionSpec
 import com.kmp.navigation.NavigationEvent
 import com.kmp.navigation.NavigationGraph
-import co.touchlab.kermit.Logger
 
 /**
- * Root-level NavigationContent – renders the outermost shell destination.
+ * Root-level NavigationContent.
  *
- * Always renders the FIRST entry of the back stack, which is the top-level
- * shell screen (e.g. AppRootContent).
+ * Renders the FIRST (outermost shell) destination in the back stack.
+ * Place this once at the very top of your app.
  *
  * ```kotlin
  * @Composable
- * fun AppScreen() {
+ * fun App() {
  *     AppTheme {
  *         RootNavigationContent(modifier = Modifier.fillMaxSize())
  *     }
@@ -39,37 +38,26 @@ import co.touchlab.kermit.Logger
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun RootNavigationContent(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    transitionSpec: ((NavDestination, NavDestination) -> ContentTransform)? = null
 ) {
     val navState by GlobalNavigation.controller.state.collectAsState()
     val current = navState.backStack.firstOrNull() ?: return
-    val lastEvent = navState.lastEvent
 
     AnimatedContent(
         modifier = modifier,
         targetState = current,
         transitionSpec = {
-            val fromIndex = NavigationGraph.sectionIndexFor(initialState)
-            val toIndex = NavigationGraph.sectionIndexFor(targetState)
-            val isSectionChange = fromIndex != null && toIndex != null && fromIndex != toIndex
-
-            if (lastEvent == NavigationEvent.SwitchTo && isSectionChange) {
-                if (toIndex > fromIndex) {
-                    (slideInHorizontally { it } + fadeIn()).togetherWith(
-                        slideOutHorizontally { -it } + fadeOut())
-                } else {
-                    (slideInHorizontally { -it } + fadeIn()).togetherWith(
-                        slideOutHorizontally { it } + fadeOut())
-                }
-            } else {
-                fadeIn().togetherWith(fadeOut())
-            }.using(SizeTransform(clip = true))
+            transitionSpec?.invoke(initialState, targetState)
+                ?: resolveTransition(navState.lastEvent, navState.lastTransition, initialState, targetState)
         },
         label = "RootNavigationContent"
     ) { destination ->
         val screen = NavigationGraph.findScreen(destination)
         if (screen == null) {
-            Logger.w("NavigationContent") { "No screen registered for ${destination::class.simpleName}. Did you call registerNavigation()?" }
+            Logger.w("RootNavigationContent") {
+                "No screen registered for ${destination::class.simpleName}."
+            }
             return@AnimatedContent
         }
         Box(modifier = Modifier.fillMaxSize()) {
@@ -79,15 +67,14 @@ fun RootNavigationContent(
 }
 
 /**
- * Section-scoped NavigationContent – renders the active destination within
- * section [S], skipping the shell root of [S] to avoid infinite loops.
+ * Section-scoped NavigationContent.
  *
- * Finds the shell root of [S] in the back stack, then renders the next
- * entry after it.
+ * Renders the destination right after the shell root of section [S]
+ * in the back stack. Skips the shell root itself to avoid infinite loops.
  *
  * ```kotlin
  * @Composable
- * fun AppRootContent() {
+ * fun AppRootScreen() {
  *     Scaffold(bottomBar = { BottomBar() }) { padding ->
  *         NavigationContent<AppRootSection>(modifier = Modifier.padding(padding))
  *     }
@@ -97,7 +84,7 @@ fun RootNavigationContent(
  * fun HomeScreen() {
  *     Column {
  *         TabBar()
- *         NavigationContent<HomeScreenSection>()
+ *         NavigationContent<HomeSection>(modifier = Modifier.weight(1f))
  *     }
  * }
  * ```
@@ -105,10 +92,10 @@ fun RootNavigationContent(
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 inline fun <reified S : NavSection> NavigationContent(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    noinline transitionSpec: ((NavDestination, NavDestination) -> ContentTransform)? = null
 ) {
     val navState by GlobalNavigation.controller.state.collectAsState()
-    val lastEvent = navState.lastEvent
 
     val shellRootIndex = navState.backStack.indexOfFirst { destination ->
         NavigationGraph.isSectionShellRoot(destination, S::class)
@@ -116,39 +103,50 @@ inline fun <reified S : NavSection> NavigationContent(
 
     val current = if (shellRootIndex >= 0 && shellRootIndex + 1 < navState.backStack.size) {
         navState.backStack[shellRootIndex + 1]
-    } else return
-
-    Logger.i("NavigationContent") { "Section: ${S::class.simpleName}, backStack: ${navState.backStack}, shellRootIndex: $shellRootIndex" }
+    } else {
+        return
+    }
 
     AnimatedContent(
         modifier = modifier,
         targetState = current,
         transitionSpec = {
-            val fromIndex = NavigationGraph.sectionIndexFor(initialState)
-            val toIndex = NavigationGraph.sectionIndexFor(targetState)
-            val isSectionChange = fromIndex != null && toIndex != null && fromIndex != toIndex
-
-            if (lastEvent == NavigationEvent.SwitchTo && isSectionChange) {
-                if (toIndex > fromIndex) {
-                    (slideInHorizontally { it } + fadeIn()).togetherWith(
-                        slideOutHorizontally { -it } + fadeOut())
-                } else {
-                    (slideInHorizontally { -it } + fadeIn()).togetherWith(
-                        slideOutHorizontally { it } + fadeOut())
-                }
-            } else {
-                fadeIn().togetherWith(fadeOut())
-            }.using(SizeTransform(clip = true))
+            transitionSpec?.invoke(initialState, targetState)
+                ?: resolveTransition(navState.lastEvent, navState.lastTransition, initialState, targetState)
         },
         label = "NavigationContent<${S::class.simpleName}>"
     ) { destination ->
         val screen = NavigationGraph.findScreen(destination)
         if (screen == null) {
-            Logger.w("NavigationContent") { "No screen registered for ${destination::class.simpleName}. Did you call registerNavigation()?" }
+            Logger.w("NavigationContent") {
+                "No screen registered for ${destination::class.simpleName}."
+            }
             return@AnimatedContent
         }
         Box(modifier = Modifier.fillMaxSize()) {
             screen(destination)
         }
+    }
+}
+
+/**
+ * Resolves the [ContentTransform] based on the last navigation event
+ * and the transition spec stored in state.
+ */
+fun resolveTransition(
+    event: NavigationEvent,
+    spec: NavTransitionSpec,
+    from: NavDestination,
+    to: NavDestination
+): ContentTransform {
+    val fromIndex = NavigationGraph.sectionIndexFor(from)
+    val toIndex = NavigationGraph.sectionIndexFor(to)
+
+    return when {
+        event == NavigationEvent.SwitchTo
+                && fromIndex != null
+                && toIndex != null
+                && fromIndex != toIndex -> spec.toContentTransform()
+        else -> fadeIn() togetherWith fadeOut()
     }
 }

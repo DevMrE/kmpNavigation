@@ -5,16 +5,13 @@ import com.kmp.navigation.Navigation
 import org.koin.dsl.module
 
 /**
- * Add this navigation module to koin
+ * Koin module providing the global [Navigation] singleton.
  *
  * ```kotlin
- *
- * // example
  * startKoin {
- *    modules(navigationModule, otherModule)
+ *     modules(navigationModule, appModule)
  * }
  * ```
- * @see [Navigation]
  */
 val navigationModule = module {
     single<Navigation> { GlobalNavigation.navigation }

@@ -15,7 +15,7 @@ import com.kmp.navigation.NavigationGraph
  *
  * ```kotlin
  * @Composable
- * fun BottomBarComponent() {
+ * fun BottomBar() {
  *     val navigation = rememberNavigation()
  *     NavigationBarItem(onClick = { navigation.switchTo(HomeSection) })
  * }
@@ -26,80 +26,51 @@ fun rememberNavigation(): Navigation =
     remember { GlobalNavigation.navigation }
 
 /**
- * Observes the current [NavDestination] from the global navigation state.
+ * Observes the current [NavDestination].
+ *
+ * Returns [fallback] if no destination is active yet.
  *
  * ```kotlin
- * @Composable
- * fun TopAppBarComponent() {
- *     val destination = rememberNavDestination()
- * }
+ * val destination = rememberNavDestination()
  * ```
  */
 @Composable
 fun rememberNavDestination(
-    initialDestination: NavDestination? = null
-): NavDestination {
+    fallback: NavDestination? = null
+): NavDestination? {
     val state by GlobalNavigation.controller.state.collectAsState()
-    return state.currentDestination
-        ?: initialDestination
-        ?: error(
-            "No current NavDestination and no initialDestination provided. " +
-                    "Make sure registerNavigation() was called before rendering."
-        )
+    return state.currentDestination ?: fallback
 }
 
 /**
  * Observes the current [NavSection].
  *
+ * Returns [fallback] if no section is active yet.
+ *
  * ```kotlin
- * @Composable
- * fun BottomBarComponent() {
- *     val section = rememberNavSection(initialSection = HomeSection)
- *     NavigationBarItem(selected = section == HomeSection)
- * }
+ * val section = rememberNavSection(fallback = HomeSection)
  * ```
  */
 @Composable
 fun rememberNavSection(
-    initialSection: NavSection? = null
-): NavSection {
+    fallback: NavSection? = null
+): NavSection? {
     val state by GlobalNavigation.controller.state.collectAsState()
-    return state.currentSection
-        ?: initialSection
-        ?: error(
-            "No current NavSection and no initialSection provided. " +
-                    "Make sure registerNavigation() was called before rendering."
-        )
+    return state.currentSection ?: fallback
 }
 
 /**
  * Observes the currently active destination within section [S].
  *
- * Use this to highlight the correct tab in a tab bar.
- *
- * Returns the last destination in the back stack that belongs to section [S],
- * or null if no destination in [S] is currently in the stack.
+ * Returns the last destination in the back stack that belongs to [S],
+ * or null if none found.
  *
  * ```kotlin
- * @Composable
- * fun HomeScreen() {
- *     val navigation = rememberNavigation()
- *     val currentTab = rememberCurrentDestinationInSection<HomeSection>()
- *
- *     TabRow(selectedTabIndex = when (currentTab) {
- *         is MovieScreenDestination -> 0
- *         else -> 1
- *     }) {
- *         Tab(
- *             selected = currentTab is MovieScreenDestination,
- *             onClick = { navigation.switchTo(MovieTab) }
- *         )
- *         Tab(
- *             selected = currentTab is SeriesScreenDestination,
- *             onClick = { navigation.switchTo(SeriesTab) }
- *         )
- *     }
- * }
+ * val currentTab = rememberCurrentDestinationInSection<HomeSection>()
+ * TabRow(selectedTabIndex = when (currentTab) {
+ *     is MovieDestination -> 0
+ *     else -> 1
+ * })
  * ```
  */
 @Composable

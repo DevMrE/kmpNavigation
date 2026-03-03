@@ -1,75 +1,96 @@
 package com.kmp.navigation
 
+/**
+ * Platform-agnostic navigation API.
+ *
+ * Inject this interface into ViewModels via Koin or use
+ * [rememberNavigation] in Composables.
+ *
+ * ```kotlin
+ * class HomeViewModel(private val navigation: Navigation) : ViewModel() {
+ *     fun onMovieClicked(id: String) {
+ *         navigation.navigateTo(DetailDestination(id))
+ *     }
+ *     fun onSettingsClicked() {
+ *         navigation.switchTo(SettingsSection)
+ *     }
+ * }
+ * ```
+ */
 interface Navigation {
 
     /**
-     * Navigate to the given [navDestination] and push it onto the back stack.
+     * Push [destination] onto the back stack.
      *
      * ```kotlin
-     * navigation.navigateTo(MovieContentListDestination)
-     * navigation.navigateTo(DetailScreenDestination(id = 42)) {
-     *     singleTop = true
-     * }
+     * navigation.navigateTo(DetailDestination(id = "42"))
+     * navigation.navigateTo(ProfileDestination) { singleTop = true }
      * ```
      */
     fun <D : NavDestination> navigateTo(
-        navDestination: D,
+        destination: D,
         options: NavOptions.() -> Unit = {}
     )
 
     /**
-     * Switch to the given [section].
+     * Switch to [section] without pushing onto the back stack.
      *
-     * Does NOT push onto the back stack. The full shell chain is built
-     * automatically from the root section down to the target section.
-     *
-     * The last visited destination of [section] is restored. If the section
-     * has never been visited, the configured root destination is used.
+     * Builds a full shell chain automatically. The last visited destination
+     * of [section] is restored. If never visited, the configured root is used.
      *
      * ```kotlin
-     * navigation.switchTo(HomeScreenSection)
+     * navigation.switchTo(HomeSection)
      * navigation.switchTo(SettingsSection)
      * ```
      */
-    fun switchTo(section: NavSection)
+    fun switchTo(
+        section: NavSection,
+        transition: NavTransitionSpec? = null
+    )
 
     /**
-     * Switch to the given [destination] directly, without pushing onto the back stack.
+     * Switch to [destination] without pushing onto the back stack.
      *
-     * Unlike [navigateTo], this replaces the current entry in-place.
-     * The user cannot navigate back to the previous screen with [navigateUp].
-     *
-     * Use this for tab switching where the destination is not wrapped in its own section.
+     * Use this for tab switching within a section.
      *
      * ```kotlin
-     * navigation.switchTo(MovieScreenDestination)
-     * navigation.switchTo(SeriesScreenDestination)
+     * navigation.switchTo(MovieDestination)
+     * navigation.switchTo(SeriesDestination)
      * ```
      */
-    fun <D : NavDestination> switchTo(destination: D)
+    fun <D : NavDestination> switchTo(
+        destination: D,
+        transition: NavTransitionSpec? = null
+    )
 
     /**
-     * Pop a single entry from the back stack.
-     *
-     * If there is only one entry left, this is a no-op.
-     *
-     * ```kotlin
-     * navigation.navigateUp()
-     * ```
+     * Pop the top entry from the back stack.
+     * No-op if only one entry remains.
      */
     fun navigateUp()
 
     /**
-     * Pop entries from the back stack until [navDestination] is reached.
+     * Pop entries until [destination] is reached.
      *
-     * If [navDestination] is null, this behaves like [navigateUp].
-     *
-     * ```kotlin
-     * navigation.popBackTo(HomeScreenDestination, inclusive = false)
-     * ```
+     * @param inclusive If true, also removes [destination] itself.
      */
     fun <D : NavDestination> popBackTo(
-        navDestination: D?,
+        destination: D,
         inclusive: Boolean = false
     )
+
+    /**
+     * Pop entries until the root destination of [section] is reached.
+     *
+     * @param inclusive If true, also removes the section root itself.
+     */
+    fun popBackTo(
+        section: NavSection,
+        inclusive: Boolean = false
+    )
+
+    /**
+     * Clear the entire back stack and navigate to [destination].
+     */
+    fun <D : NavDestination> clearStackAndNavigate(destination: D)
 }

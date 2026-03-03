@@ -4,25 +4,26 @@ import androidx.compose.runtime.Composable
 import co.touchlab.kermit.Logger
 import kotlin.reflect.KClass
 
+/**
+ * Global registry mapping destinations to their Composable content
+ * and tracking section hierarchy.
+ */
 object NavigationGraph {
 
-    private val screens = mutableMapOf<KClass<out NavDestination>, @Composable (NavDestination) -> Unit>()
-    private val destinationSections = mutableMapOf<KClass<out NavDestination>, NavSection>()
-    private val sectionRoots = mutableMapOf<NavSection, NavDestination>()
-    private val sectionIndices = mutableMapOf<NavSection, Int>()
-    private val sectionParents = mutableMapOf<NavSection, NavSection>()
-    private val overlaySections = mutableSetOf<NavSection>()
+    private val screens =
+        mutableMapOf<KClass<out NavDestination>, @Composable (NavDestination) -> Unit>()
+    private val destinationSections =
+        mutableMapOf<KClass<out NavDestination>, NavSection>()
+    private val sectionRoots =
+        mutableMapOf<NavSection, NavDestination>()
+    private val sectionIndices =
+        mutableMapOf<NavSection, Int>()
+    private val sectionParents =
+        mutableMapOf<NavSection, NavSection>()
 
-    private var configured: Boolean = false
+    private var configured = false
 
-    fun debugPrintHierarchy() {
-        Logger.i("NavigationGraph") { "=== destinationSections ===" }
-        destinationSections.forEach { (k, v) -> Logger.i("NavigationGraph") { "${k.simpleName} -> $v" } }
-        Logger.i("NavigationGraph") { "=== sectionParents ===" }
-        sectionParents.forEach { (k, v) -> Logger.i("NavigationGraph") { "$k -> $v" } }
-        Logger.i("NavigationGraph") { "=== sectionRoots ===" }
-        sectionRoots.forEach { (k, v) -> Logger.i("NavigationGraph") { "$k -> $v" } }
-    }
+    fun isConfigured(): Boolean = configured
 
     fun configureNavigationGraph(
         startDestination: NavDestination,
@@ -33,34 +34,31 @@ object NavigationGraph {
         sectionRoots.clear()
         sectionIndices.clear()
         sectionParents.clear()
-        overlaySections.clear()
 
-        var nextSectionIndex = 0
+        var nextIndex = 0
 
         val dsl = RegisterNavigationBuilder(
-            registerScreen = { key, screen ->
+            registerScreen = { key, content ->
                 if (screens.containsKey(key)) {
-                    Logger.w("NavigationGraph") { "Destination ${key.simpleName} is already registered. Skipping." }
+                    Logger.w("NavigationGraph") { "${key.simpleName} already registered – skipping." }
                 } else {
-                    screens[key] = screen
+                    screens[key] = content
                 }
             },
-            registerDestinationSection = { destKey, section ->
-                destinationSections[destKey] = section
+            registerDestinationSection = { key, section ->
+                destinationSections[key] = section
             },
-            registerSectionRoot = { section, root, parentSection, isOverlay ->
+            registerSectionRoot = { section, root, parent, _ ->
                 sectionRoots[section] = root
                 if (!sectionIndices.containsKey(section)) {
-                    sectionIndices[section] = nextSectionIndex++
+                    sectionIndices[section] = nextIndex++
                 }
-                if (parentSection != null) {
-                    sectionParents[section] = parentSection
-                }
-                if (isOverlay) {
-                    overlaySections += section
+                if (parent != null) {
+                    sectionParents[section] = parent
                 }
             }
         )
+
         dsl.builder()
 
         configured = true
@@ -68,24 +66,37 @@ object NavigationGraph {
         GlobalNavigation.controller.configureSections(
             destinationToSection = destinationSections.toMap(),
             sectionRoots = sectionRoots.toMap(),
-            parentSections = sectionParents.toMap()
+            parentSections = sectionParents.toMap(),
+            sectionIndices = sectionIndices.toMap()
         )
 
-        if (GlobalNavigation.controller.state.value.currentDestination == null) {
+        val controller = GlobalNavigation.controller
+        if (controller.backStack.isEmpty()) {
             val startSection = destinationSections[startDestination::class]
             if (startSection != null) {
-                GlobalNavigation.controller.switchTo(startSection)
+                controller.switchTo(startSection)
             } else {
-                GlobalNavigation.navigation.navigateTo(startDestination) { clearStack() }
+                controller.backStack.add(startDestination)
             }
         }
     }
 
     fun findScreen(
         destination: NavDestination
-    ): (@Composable (NavDestination) -> Unit)? = screens[destination::class]
+    ): (@Composable (NavDestination) -> Unit)? =
+        screens[destination::class]
 
-    fun sectionIndexFor(destination: NavDestination): Int? {
+    fun isSectionShellRoot(
+        destination: NavDestination,
+        sectionClass: KClass<out NavSection>
+    ): Boolean {
+        val section = sectionRoots.keys.firstOrNull { it::class == sectionClass }
+            ?: return false
+        val root = sectionRoots[section] ?: return false
+        return destination::class == root::class
+    }
+
+    internal fun sectionIndexFor(destination: NavDestination): Int? {
         val section = destinationSections[destination::class] ?: return null
         return sectionIndices[section]
     }
@@ -95,20 +106,7 @@ object NavigationGraph {
         sectionClass: KClass<out NavSection>
     ): Boolean {
         val destSection = destinationSections[destination::class] ?: return false
-        return isSectionOrDescendant(destSection, scopeClass = sectionClass)
-    }
-
-    /**
-     * Returns true if [destination] is the shell root of [sectionClass].
-     * Shell roots are skipped by NavigationContent<S> to avoid infinite loops.
-     */
-    fun isSectionShellRoot(
-        destination: NavDestination,
-        sectionClass: KClass<out NavSection>
-    ): Boolean {
-        val section = sectionRoots.keys.firstOrNull { it::class == sectionClass } ?: return false
-        val root = sectionRoots[section] ?: return false
-        return destination::class == root::class
+        return isSectionOrDescendant(destSection, sectionClass)
     }
 
     private fun isSectionOrDescendant(

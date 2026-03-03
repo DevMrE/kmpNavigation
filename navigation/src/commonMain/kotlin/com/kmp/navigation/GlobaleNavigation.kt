@@ -1,33 +1,15 @@
 package com.kmp.navigation
 
 /**
- * Global holder for the single [Navigation] instance used by the app.
+ * Global singleton holder for the [Navigation] instance.
  *
- * This is the instance that [rememberNavigation] uses and that you can
- * also expose via DI:
- *
- * ```kotlin
- * // Koin module
- * val navigationModule = module {
- *     single<Navigation> { GlobalNavigation.navigation }
- * }
- * ```
+ * Used internally by Compose helpers and NavigationGraph.
+ * In production, prefer injecting [Navigation] via Koin.
  */
 object GlobalNavigation {
 
-    /**
-     * The global [Navigation] instance.
-     *
-     * ```kotlin
-     * val navigation: Navigation = GlobalNavigation.navigation
-     * ```
-     */
     val navigation: Navigation = NavigationFactory.create()
 
-    /**
-     * Typed access to the underlying [NavigationController].
-     * Used internally by compose helpers and the navigation graph.
-     */
     val controller: NavigationController
         get() = navigation as NavigationController
 }

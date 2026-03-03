@@ -1,30 +1,29 @@
 package com.kmp.navigation
 
 import androidx.compose.runtime.Composable
+import co.touchlab.kermit.Logger
 import kotlin.reflect.KClass
 
 /**
- * Top-level DSL builder used by [registerNavigation].
- *
- * Supports nested sections and registers screens within their section scope.
+ * DSL builder for registering sections and screens.
  *
  * ```kotlin
- * registerNavigation(startDestination = AppRootDestination) {
+ * registerNavigation(startDestination = MovieDestination) {
  *
- *     section<AppRootSection>(root = AppRootDestination) {
+ *     section(AppRootSection, AppRootDestination) {
+ *         screen<AppRootDestination> { AppRootScreen() }
  *
- *         section<HomeSection>(root = MovieScreenDestination) {
- *             screen<MovieScreenDestination> { MovieScreen() }
- *             screen<SeriesScreenDestination> { SeriesScreen() }
+ *         section(HomeSection, HomeDestination) {
+ *             screen<HomeDestination> { HomeScreen() }
+ *             screen<MovieDestination> { MovieScreen() }
+ *             screen<SeriesDestination> { SeriesScreen() }
  *         }
  *
- *         section<SettingsSection>(root = SettingsScreenDestination) {
- *             screen<SettingsScreenDestination> { SettingsScreen() }
- *         }
+ *         screen<SettingsDestination> { SettingsScreen() }
  *     }
  *
- *     section<DetailSection>(root = DetailScreenDestination(id = ""), overlay = true) {
- *         screen<DetailScreenDestination> { detail -> DetailScreen(detail.id) }
+ *     section(DetailSection, DetailDestination(id = "")) {
+ *         screen<DetailDestination> { dest -> DetailScreen(dest.id) }
  *     }
  * }
  * ```
@@ -38,28 +37,19 @@ class RegisterNavigationBuilder @PublishedApi internal constructor(
 ) {
 
     /**
-     * Declare a navigation section, optionally nested inside the current section.
+     * Declare a section, optionally nested inside the current section.
      *
-     * @param section The singleton instance of the section.
-     * @param root The root destination shown when entering this section for the first time.
-     * @param overlay If true (default), this section renders as an overlay on top of its
-     * parent when navigated to. If false, it replaces the parent completely.
-     *
-     * ```kotlin
-     * section<HomeSection>(root = MovieScreenDestination) {
-     *     screen<MovieScreenDestination> { MovieScreen() }
-     *     screen<SeriesScreenDestination> { SeriesScreen() }
-     * }
-     * ```
+     * @param section The singleton section instance.
+     * @param root The root destination of this section.
+     * @param overlay Reserved for future overlay support.
      */
     inline fun <reified S : NavSection> section(
         section: S,
         root: NavDestination,
-        overlay: Boolean = true,
+        overlay: Boolean = false,
         noinline builder: RegisterNavigationBuilder.() -> Unit
     ) {
         registerSectionRoot(section, root, currentSection, overlay)
-
         RegisterNavigationBuilder(
             registerScreen = registerScreen,
             registerDestinationSection = registerDestinationSection,
@@ -69,25 +59,27 @@ class RegisterNavigationBuilder @PublishedApi internal constructor(
     }
 
     /**
-     * Register a composable screen for destination type [D].
-     *
-     * Must be called inside a [section] block.
-     *
-     * ```kotlin
-     * screen<MovieScreenDestination> { destination ->
-     *     MovieScreen(destination.id)
-     * }
-     * ```
+     * Register a screen for destination [D] within the current section.
      */
     inline fun <reified D : NavDestination> screen(
         noinline content: @Composable (D) -> Unit
     ) {
-        val section = currentSection ?: error("screen<${D::class.simpleName}> must be called inside a section { } block.")
-
+        val section = currentSection
+        if (section == null) {
+            Logger.w("RegisterNavigationBuilder") {
+                "screen<${D::class.simpleName}> called outside a section block – skipping."
+            }
+            return
+        }
         registerDestinationSection(D::class, section)
         registerScreen(D::class) { dest ->
-            @Suppress("UNCHECKED_CAST")
-            content(dest as D)
+            if (dest is D) {
+                content(dest)
+            } else {
+                Logger.w("RegisterNavigationBuilder") {
+                    "Type mismatch for ${D::class.simpleName} – skipping render."
+                }
+            }
         }
     }
 }
