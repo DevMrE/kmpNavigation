@@ -3,6 +3,7 @@ package com.kmp.navigation.compose
 import androidx.compose.animation.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.Scene
@@ -160,16 +161,27 @@ internal fun RenderSection(
         popTransitionSpec = popTransitionSpec ?: defaultPopTransitionSpec,
         predictivePopTransitionSpec = predictivePopTransitionSpec
             ?: defaultPredictivePopTransitionSpec,
-        entryProvider = entryProvider {
-            entry<NavDestination> { destination ->
-                val screenData = NavigationGraph.findScreenWithMetadata(destination)
-                if (screenData == null) {
-                    Logger.w("NavigationContent") {
-                        "No screen registered for ${destination::class.simpleName}."
-                    }
-                    return@entry
+        entryProvider = { destination ->
+            val screenData = NavigationGraph.findScreenWithMetadata(destination)
+            if (screenData == null) {
+                Logger.w("NavigationContent") {
+                    "No screen registered for ${destination::class.simpleName}."
                 }
-                screenData.content(destination)
+                NavEntry(destination) {}
+            } else {
+                NavEntry(
+                    key = destination,
+                    metadata = buildMap {
+                        screenData.transitionSpec?.let {
+                            put("transitionSpec", it)
+                        }
+                        screenData.popTransitionSpec?.let {
+                            put("popTransitionSpec", it)
+                        }
+                    }
+                ) {
+                    screenData.content(destination)
+                }
             }
         }
     )

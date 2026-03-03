@@ -12,7 +12,7 @@ plugins {
 
 // publishing version
 group = "com.kmp.navigation"
-version = "1.0.7"
+version = "1.0.8"
 
 kotlin {
     compilerOptions {
