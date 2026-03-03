@@ -24,8 +24,6 @@ object NavigationGraph {
 
     private var configured = false
 
-    fun isConfigured(): Boolean = configured
-
     fun configureNavigationGraph(
         startDestination: NavDestination,
         builder: RegisterNavigationBuilder.() -> Unit
@@ -71,7 +69,7 @@ object NavigationGraph {
             sectionIndices = sectionIndices.toMap()
         )
 
-        val controller = GlobalNavigation.controller
+        val controller = controller
         if (controller.backStack.isEmpty()) {
             val startSection = destinationSections[startDestination::class]
             if (startSection != null) {

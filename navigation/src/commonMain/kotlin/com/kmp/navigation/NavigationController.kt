@@ -40,11 +40,6 @@ class NavigationController : Navigation {
     internal fun sectionOf(destination: NavDestination): NavSection? =
         destinationSections[destination::class]
 
-    internal fun sectionIndexOf(destination: NavDestination): Int? {
-        val section = sectionOf(destination) ?: return null
-        return sectionIndices[section]
-    }
-
     private fun isShellRoot(destination: NavDestination): Boolean =
         sectionRoots.values.any { it::class == destination::class }
 
