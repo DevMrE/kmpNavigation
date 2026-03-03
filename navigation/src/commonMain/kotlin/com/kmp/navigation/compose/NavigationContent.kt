@@ -25,16 +25,36 @@ import com.kmp.navigation.NavigationEvent
 import com.kmp.navigation.NavigationGraph
 
 @Composable
+fun RootNavigationContent(
+    modifier: Modifier = Modifier,
+    transitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
+    popTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
+    predictivePopTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) -> ContentTransform)? = null
+) {
+    val controller = GlobalNavigation.controller
+    val navState by controller.state.collectAsState()
+
+    val topLevelSection = navState.backStack
+        .mapNotNull { controller.sectionOf(it) }
+        .firstOrNull { NavigationGraph.parentSectionOf(it) == null }
+        ?: return
+
+    RenderSection(
+        section = topLevelSection,
+        modifier = modifier,
+        transitionSpec = transitionSpec,
+        popTransitionSpec = popTransitionSpec,
+        predictivePopTransitionSpec = predictivePopTransitionSpec
+    )
+}
+
+@Composable
 inline fun <reified S : NavSection> NavigationContent(
     modifier: Modifier = Modifier,
     noinline transitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
     noinline popTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
     noinline predictivePopTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) -> ContentTransform)? = null
 ) {
-    val controller = GlobalNavigation.controller
-    val navState by controller.state.collectAsState()
-    val navigation = GlobalNavigation.navigation
-
     val sectionInstance = remember {
         NavigationGraph.sectionInstanceFor(S::class)
     }
@@ -44,17 +64,37 @@ inline fun <reified S : NavSection> NavigationContent(
         return
     }
 
-    val subStack = remember { mutableStateListOf<NavDestination>() }
+    RenderSection(
+        section = sectionInstance,
+        modifier = modifier,
+        transitionSpec = transitionSpec,
+        popTransitionSpec = popTransitionSpec,
+        predictivePopTransitionSpec = predictivePopTransitionSpec
+    )
+}
+
+@Composable
+@PublishedApi
+internal fun RenderSection(
+    section: NavSection,
+    modifier: Modifier = Modifier,
+    transitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
+    popTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
+    predictivePopTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) -> ContentTransform)? = null
+) {
+    val controller = GlobalNavigation.controller
+    val navState by controller.state.collectAsState()
+    val lastEvent = navState.lastEvent
+
+    val subStack = remember(section) { mutableStateListOf<NavDestination>() }
 
     LaunchedEffect(navState.backStack) {
-        val newStack = controller.subStackFor(sectionInstance)
+        val newStack = controller.subStackFor(section)
         subStack.clear()
         subStack.addAll(newStack)
     }
 
     if (subStack.isEmpty()) return
-
-    val lastEvent = navState.lastEvent
 
     val defaultTransitionSpec: AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform = {
         when (lastEvent) {
@@ -77,7 +117,7 @@ inline fun <reified S : NavSection> NavigationContent(
     NavDisplay(
         modifier = modifier,
         backStack = subStack,
-        onBack = { navigation.navigateUp() },
+        onBack = { GlobalNavigation.navigation.navigateUp() },
         transitionSpec = transitionSpec ?: defaultTransitionSpec,
         popTransitionSpec = popTransitionSpec ?: defaultPopTransitionSpec,
         predictivePopTransitionSpec = predictivePopTransitionSpec ?: defaultPredictivePopTransitionSpec,

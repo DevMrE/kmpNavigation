@@ -91,6 +91,9 @@ object NavigationGraph {
     fun sectionInstanceFor(sectionClass: KClass<out NavSection>): NavSection? =
         sectionRoots.keys.firstOrNull { it::class == sectionClass }
 
+    internal fun parentSectionOf(section: NavSection): NavSection? =
+        sectionParents[section]
+
     private fun isSectionOrDescendant(
         candidate: NavSection,
         scopeClass: KClass<out NavSection>
