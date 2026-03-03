@@ -76,7 +76,7 @@ object NavigationGraph {
     internal fun parentSectionOf(section: NavSection): NavSection? =
         sectionParents[section]
 
-    internal fun destinationBelongsToSectionScope(
+    fun destinationBelongsToSectionScope(
         destination: NavDestination,
         sectionClass: KClass<out NavSection>
     ): Boolean {
