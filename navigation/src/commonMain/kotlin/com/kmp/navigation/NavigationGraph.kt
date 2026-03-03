@@ -1,6 +1,5 @@
 package com.kmp.navigation
 
-import androidx.compose.runtime.Composable
 import co.touchlab.kermit.Logger
 import kotlin.reflect.KClass
 
@@ -8,7 +7,6 @@ object NavigationGraph {
 
     private val screens =
         mutableMapOf<KClass<out NavDestination>, NavScreenData>()
-
     private val destinationSections =
         mutableMapOf<KClass<out NavDestination>, NavSection>()
     private val sectionRoots =
@@ -31,11 +29,11 @@ object NavigationGraph {
         var nextIndex = 0
 
         val dsl = RegisterNavigationBuilder(
-            registerScreen = { key, content ->
+            registerScreen = { key, screenData ->
                 if (screens.containsKey(key)) {
                     Logger.w("NavigationGraph") { "${key.simpleName} already registered – skipping." }
                 } else {
-                    screens[key] = content
+                    screens[key] = screenData
                 }
             },
             registerDestinationSection = { key, section ->
@@ -61,15 +59,8 @@ object NavigationGraph {
             sectionIndices = sectionIndices.toMap()
         )
 
-        val controller = GlobalNavigation.controller
-        if (controller.backStack.isEmpty()) {
-            val startSection = destinationSections[startDestination::class]
-            if (startSection != null) {
-                controller.setInitialTab(startSection, startDestination)
-                controller.switchTo(startSection)
-            } else {
-                controller.backStack.add(startDestination)
-            }
+        if (GlobalNavigation.controller.backStack.isEmpty()) {
+            GlobalNavigation.controller.buildInitialStack(startDestination)
         }
     }
 
@@ -77,23 +68,21 @@ object NavigationGraph {
         destination: NavDestination
     ): NavScreenData? = screens[destination::class]
 
-    fun destinationBelongsToSectionScope(
+    fun sectionInstanceFor(
+        sectionClass: KClass<out NavSection>
+    ): NavSection? =
+        sectionRoots.keys.firstOrNull { it::class == sectionClass }
+
+    internal fun parentSectionOf(section: NavSection): NavSection? =
+        sectionParents[section]
+
+    internal fun destinationBelongsToSectionScope(
         destination: NavDestination,
         sectionClass: KClass<out NavSection>
     ): Boolean {
         val destSection = destinationSections[destination::class] ?: return false
         return isSectionOrDescendant(destSection, sectionClass)
     }
-
-    /**
-     * Returns the section instance for the given KClass.
-     * Used by NavigationContent to find the correct section.
-     */
-    fun sectionInstanceFor(sectionClass: KClass<out NavSection>): NavSection? =
-        sectionRoots.keys.firstOrNull { it::class == sectionClass }
-
-    internal fun parentSectionOf(section: NavSection): NavSection? =
-        sectionParents[section]
 
     private fun isSectionOrDescendant(
         candidate: NavSection,

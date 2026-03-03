@@ -16,7 +16,8 @@ class NavigationController : Navigation {
 
     private var destinationSections: Map<KClass<out NavDestination>, NavSection> = emptyMap()
     private var sectionRoots: Map<NavSection, NavDestination> = emptyMap()
-    private var parentSections: Map<NavSection, NavSection> = emptyMap()
+    internal var parentSections: Map<NavSection, NavSection> = emptyMap()
+        private set
     private var sectionIndices: Map<NavSection, Int> = emptyMap()
 
     private val lastTabPerSection = mutableMapOf<NavSection, NavDestination>()
@@ -43,40 +44,76 @@ class NavigationController : Navigation {
         sectionRoots.values.any { it::class == destination::class }
 
     /**
-     * Returns the filtered substack for a given section.
-     * Used by NavigationContent<S> to feed into NavDisplay.
+     * Builds the initial back stack from scratch based on the startDestination.
+     *
+     * Example with startDestination = MovieScreenDestination:
+     * → [AppRootDestination, HomeScreenDestination, MovieScreenDestination]
      */
-    fun subStackFor(section: NavSection): List<NavDestination> {
-        // Find shell root index for this section
-        val shellRootIndex = backStack.indexOfFirst { dest ->
-            sectionRoots[section]?.let { it::class == dest::class } == true
+    internal fun buildInitialStack(startDestination: NavDestination) {
+        val startSection = sectionOf(startDestination) ?: run {
+            backStack.add(startDestination)
+            updateState()
+            return
         }
+
+        // Build ancestor chain: [AppRootSection, HomeScreenSection]
+        val sectionChain = mutableListOf<NavSection>()
+        var current: NavSection? = startSection
+        while (current != null) {
+            sectionChain.add(0, current)
+            current = parentSections[current]
+        }
+
+        // Push shell roots for all ancestors except the deepest section
+        sectionChain.dropLast(1).forEach { ancestorSection ->
+            sectionRoots[ancestorSection]?.let { backStack.add(it) }
+        }
+
+        // Push startDestination itself
+        backStack.add(startDestination)
+
+        // Save as last tab so switchTo restores correctly later
+        if (!isShellRoot(startDestination)) {
+            lastTabPerSection[startSection] = startDestination
+        }
+
+        updateState()
+    }
+
+    /**
+     * Returns the sub-stack for a given section.
+     *
+     * Only returns destinations that directly belong to [section].
+     * Nested sections are handled by their own NavigationContent.
+     */
+    internal fun subStackFor(section: NavSection): List<NavDestination> {
+        val root = sectionRoots[section] ?: return emptyList()
+
+        val shellRootIndex = backStack.indexOfFirst { it::class == root::class }
         if (shellRootIndex < 0) return emptyList()
 
-        // Return everything from shellRoot+1 until we hit the next sibling shell root
         val result = mutableListOf<NavDestination>()
+        val sectionParent = parentSections[section]
+
         for (i in shellRootIndex + 1 until backStack.size) {
             val dest = backStack[i]
-            // Stop if we hit a shell root of a different section at the same level
-            if (isShellRoot(dest) && sectionOf(dest) != section) break
-            if (sectionBelongsToScope(sectionOf(dest), section)) {
+            val destSection = sectionOf(dest) ?: continue
+            val destParent = parentSections[destSection]
+
+            // Stop if we hit a sibling section at the same level
+            if (destParent == sectionParent && destSection != section) break
+
+            // Only include destinations that directly belong to this section
+            // Nested section destinations are handled by their own NavigationContent
+            if (destSection == section) {
                 result.add(dest)
+            } else {
+                // Deeper nested section – stop here
+                break
             }
         }
+
         return result
-    }
-
-    private fun sectionBelongsToScope(candidate: NavSection?, scope: NavSection): Boolean {
-        if (candidate == null) return false
-        if (candidate == scope) return true
-        val parent = parentSections[candidate] ?: return false
-        return sectionBelongsToScope(parent, scope)
-    }
-
-    internal fun setInitialTab(section: NavSection, destination: NavDestination) {
-        if (!isShellRoot(destination)) {
-            lastTabPerSection[section] = destination
-        }
     }
 
     private fun updateState() {
@@ -95,7 +132,9 @@ class NavigationController : Navigation {
         options: NavOptions.() -> Unit
     ) {
         val navOptions = NavOptions().apply(options)
-        if (navOptions.singleTop && backStack.lastOrNull()?.let { it::class == destination::class } == true) return
+        if (navOptions.singleTop && backStack.lastOrNull()
+                ?.let { it::class == destination::class } == true
+        ) return
 
         lastEvent = NavigationEvent.NavigateTo
         lastTransition = navOptions.transition ?: NavTransitions.fade
@@ -238,6 +277,7 @@ class NavigationController : Navigation {
     ): NavTransitionSpec {
         val fromIndex = fromSection?.let { sectionIndices[it] } ?: return NavTransitions.fade
         val toIndex = sectionIndices[toSection] ?: return NavTransitions.fade
-        return if (toIndex > fromIndex) NavTransitions.slideInFromRight else NavTransitions.slideInFromLeft
+        return if (toIndex > fromIndex) NavTransitions.slideInFromRight
+        else NavTransitions.slideInFromLeft
     }
 }
