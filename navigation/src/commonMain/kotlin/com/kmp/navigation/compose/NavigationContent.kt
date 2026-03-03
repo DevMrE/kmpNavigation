@@ -4,32 +4,15 @@ import androidx.compose.animation.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.NavEntry
-import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
 import co.touchlab.kermit.Logger
 import com.kmp.navigation.*
 
-/**
- * Root-level NavigationContent.
- *
- * Automatically detects the active top-level section and renders it via NavDisplay.
- * Place this once at the very top of your app.
- *
- * ```kotlin
- * @Composable
- * fun AppScreen() {
- *     AppTheme {
- *         RootNavigationContent(modifier = Modifier.fillMaxSize())
- *     }
- * }
- * ```
- */
 @Composable
 fun RootNavigationContent(
     modifier: Modifier = Modifier,
-    predictiveBackEnabled: Boolean = true,
     transitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
     popTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
     predictivePopTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) -> ContentTransform)? = null
@@ -45,41 +28,15 @@ fun RootNavigationContent(
     RenderSection(
         section = topLevelSection,
         modifier = modifier,
-        predictiveBackEnabled = predictiveBackEnabled,
         transitionSpec = transitionSpec,
         popTransitionSpec = popTransitionSpec,
         predictivePopTransitionSpec = predictivePopTransitionSpec
     )
 }
 
-/**
- * Section-scoped NavigationContent backed by NavDisplay.
- *
- * Renders only destinations belonging to section [S].
- * Layout constraints from outside (e.g. weight(1f)) are fully respected.
- * Scroll position and UI state are preserved across section switches via SaveableStateHolder.
- *
- * ```kotlin
- * @Composable
- * fun AppRootContent() {
- *     Scaffold(bottomBar = { BottomBar() }) { padding ->
- *         NavigationContent<AppRootSection>(modifier = Modifier.padding(padding))
- *     }
- * }
- *
- * @Composable
- * fun HomeScreen() {
- *     Column(modifier = Modifier.fillMaxSize()) {
- *         TabBar()
- *         NavigationContent<HomeScreenSection>(modifier = Modifier.weight(1f))
- *     }
- * }
- * ```
- */
 @Composable
 inline fun <reified S : NavSection> NavigationContent(
     modifier: Modifier = Modifier,
-    predictiveBackEnabled: Boolean = true,
     noinline transitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
     noinline popTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
     noinline predictivePopTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) -> ContentTransform)? = null
@@ -96,7 +53,6 @@ inline fun <reified S : NavSection> NavigationContent(
     RenderSection(
         section = sectionInstance,
         modifier = modifier,
-        predictiveBackEnabled = predictiveBackEnabled,
         transitionSpec = transitionSpec,
         popTransitionSpec = popTransitionSpec,
         predictivePopTransitionSpec = predictivePopTransitionSpec
@@ -108,7 +64,6 @@ inline fun <reified S : NavSection> NavigationContent(
 internal fun RenderSection(
     section: NavSection,
     modifier: Modifier = Modifier,
-    predictiveBackEnabled: Boolean = true,
     transitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
     popTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
     predictivePopTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) -> ContentTransform)? = null
@@ -140,20 +95,15 @@ internal fun RenderSection(
                 slideOutHorizontally { it } + fadeOut()
     }
 
-    val defaultPredictivePopTransitionSpec: AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) -> ContentTransform =
-        {
-            slideInHorizontally { -it } + fadeIn() togetherWith
-                    slideOutHorizontally { it } + fadeOut()
-        }
+    val defaultPredictivePopTransitionSpec: AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) -> ContentTransform = {
+        slideInHorizontally { -it } + fadeIn() togetherWith
+                slideOutHorizontally { it } + fadeOut()
+    }
 
     NavDisplay(
         modifier = modifier,
         backStack = subStack,
-        onBack = if (predictiveBackEnabled) {
-            { GlobalNavigation.navigation.navigateUp() }
-        } else {
-            {}
-        },
+        onBack = { GlobalNavigation.navigation.navigateUp() },
         entryDecorators = listOf(
             rememberSaveableStateHolderNavEntryDecorator()
         ),
@@ -161,25 +111,17 @@ internal fun RenderSection(
         popTransitionSpec = popTransitionSpec ?: defaultPopTransitionSpec,
         predictivePopTransitionSpec = predictivePopTransitionSpec
             ?: defaultPredictivePopTransitionSpec,
+        // Lambda format statt DSL – unterstützt generische NavDestination Basisklasse
         entryProvider = { destination ->
             val screenData = NavigationGraph.findScreenWithMetadata(destination)
             if (screenData == null) {
                 Logger.w("NavigationContent") {
                     "No screen registered for ${destination::class.simpleName}."
                 }
-                NavEntry(destination) {}
+                // Leerer Fallback – kein Crash
+                NavEntry(key = destination) {}
             } else {
-                NavEntry(
-                    key = destination,
-                    metadata = buildMap {
-                        screenData.transitionSpec?.let {
-                            put("transitionSpec", it)
-                        }
-                        screenData.popTransitionSpec?.let {
-                            put("popTransitionSpec", it)
-                        }
-                    }
-                ) {
+                NavEntry(key = destination) {
                     screenData.content(destination)
                 }
             }
