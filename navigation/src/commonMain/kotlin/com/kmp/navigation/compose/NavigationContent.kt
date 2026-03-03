@@ -25,6 +25,8 @@ fun RootNavigationContent(
         .firstOrNull { NavigationGraph.parentSectionOf(it) == null }
         ?: return
 
+    Logger.i("KmpNavigation", message = { "Root Navigation: $topLevelSection" })
+
     RenderSection(
         section = topLevelSection,
         modifier = modifier,
@@ -46,7 +48,7 @@ inline fun <reified S : NavSection> NavigationContent(
     }
 
     if (sectionInstance == null) {
-        Logger.w("NavigationContent") { "No section instance found for ${S::class.simpleName}." }
+        Logger.w("KmpNavigation") { "No section instance found for ${S::class.simpleName}." }
         return
     }
 
@@ -95,10 +97,11 @@ internal fun RenderSection(
                 slideOutHorizontally { it } + fadeOut()
     }
 
-    val defaultPredictivePopTransitionSpec: AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) -> ContentTransform = {
-        slideInHorizontally { -it } + fadeIn() togetherWith
-                slideOutHorizontally { it } + fadeOut()
-    }
+    val defaultPredictivePopTransitionSpec: AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) -> ContentTransform =
+        {
+            slideInHorizontally { -it } + fadeIn() togetherWith
+                    slideOutHorizontally { it } + fadeOut()
+        }
 
     NavDisplay(
         modifier = modifier,
