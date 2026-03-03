@@ -98,7 +98,7 @@ internal fun RenderSection(
             .firstOrNull { NavigationGraph.parentSectionOf(it) == null }
 
         if (topLevelSection != section) {
-            Logger.d("KmpNavigation") {
+            Logger.d("NavigationContent") {
                 "renderSection(${section::class.simpleName}, isRoot=true): " +
                         "not active top-level section (active: ${topLevelSection?.let { it::class.simpleName }}). Skipping."
             }
@@ -106,27 +106,18 @@ internal fun RenderSection(
         }
     }
 
-    val subStack = remember(section) { mutableStateListOf<NavDestination>() }
-
-    LaunchedEffect(navState.backStack) {
-        val newStack = controller.subStackFor(section)
-        Logger.i("KmpNavigation") {
-            "renderSection(${section::class.simpleName}, isRoot=$isRoot) subStack: $newStack"
+    val subStack = remember(section, navState.backStack) {
+        mutableStateListOf<NavDestination>().also {
+            it.addAll(controller.subStackFor(section))
         }
-        subStack.clear()
-        subStack.addAll(newStack)
+    }
+
+    Logger.i("NavigationContent") {
+        "renderSection(${section::class.simpleName}, isRoot=$isRoot) subStack: $subStack"
     }
 
     if (subStack.isEmpty()) {
-        Logger.w("KmpNavigation") {
-            "renderSection(${section::class.simpleName}): subStack is empty – nothing to render."
-        }
-        return
-    }
-
-
-    if (subStack.isEmpty()) {
-        Logger.w("KmpNavigation") {
+        Logger.w("NavigationContent") {
             "renderSection(${section::class.simpleName}): subStack is empty – nothing to render."
         }
         return
@@ -151,7 +142,7 @@ internal fun RenderSection(
     }
 
     NavDisplay(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier,
         backStack = subStack,
         onBack = { GlobalNavigation.navigation.navigateUp() },
         entryDecorators = listOf(
