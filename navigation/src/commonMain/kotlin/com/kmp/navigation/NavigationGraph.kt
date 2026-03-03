@@ -7,7 +7,8 @@ import kotlin.reflect.KClass
 object NavigationGraph {
 
     private val screens =
-        mutableMapOf<KClass<out NavDestination>, @Composable (NavDestination) -> Unit>()
+        mutableMapOf<KClass<out NavDestination>, NavScreenData>()
+
     private val destinationSections =
         mutableMapOf<KClass<out NavDestination>, NavSection>()
     private val sectionRoots =
@@ -72,9 +73,9 @@ object NavigationGraph {
         }
     }
 
-    fun findScreen(
+    internal fun findScreenWithMetadata(
         destination: NavDestination
-    ): (@Composable (NavDestination) -> Unit)? = screens[destination::class]
+    ): NavScreenData? = screens[destination::class]
 
     fun destinationBelongsToSectionScope(
         destination: NavDestination,
