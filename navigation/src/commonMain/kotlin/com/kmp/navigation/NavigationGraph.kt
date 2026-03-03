@@ -39,8 +39,10 @@ object NavigationGraph {
 
         val dsl = RegisterNavigationBuilder(
             registerScreen = { key, screen ->
-                if (screens.put(key, screen) != null) {
-                    error("Destination ${key.simpleName} is already registered.")
+                if (screens.containsKey(key)) {
+                    Logger.w("NavigationGraph") { "Destination ${key.simpleName} is already registered. Skipping." }
+                } else {
+                    screens[key] = screen
                 }
             },
             registerDestinationSection = { destKey, section ->

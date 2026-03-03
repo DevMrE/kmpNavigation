@@ -15,9 +15,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.kmp.navigation.GlobalNavigation
+import com.kmp.navigation.NavDestination
 import com.kmp.navigation.NavSection
 import com.kmp.navigation.NavigationEvent
 import com.kmp.navigation.NavigationGraph
+import co.touchlab.kermit.Logger
 
 /**
  * Root-level NavigationContent – renders the outermost shell destination.
@@ -66,7 +68,10 @@ fun RootNavigationContent(
         label = "RootNavigationContent"
     ) { destination ->
         val screen = NavigationGraph.findScreen(destination)
-            ?: error("No screen registered for ${destination::class.simpleName}. Did you call registerNavigation()?")
+        if (screen == null) {
+            Logger.w("NavigationContent") { "No screen registered for ${destination::class.simpleName}. Did you call registerNavigation()?" }
+            return@AnimatedContent
+        }
         Box(modifier = Modifier.fillMaxSize()) {
             screen(destination)
         }
@@ -136,7 +141,10 @@ inline fun <reified S : NavSection> NavigationContent(
         label = "NavigationContent<${S::class.simpleName}>"
     ) { destination ->
         val screen = NavigationGraph.findScreen(destination)
-            ?: error("No screen registered for ${destination::class.simpleName}. Did you call registerNavigation()?")
+        if (screen == null) {
+            Logger.w("NavigationContent") { "No screen registered for ${destination::class.simpleName}. Did you call registerNavigation()?" }
+            return@AnimatedContent
+        }
         Box(modifier = Modifier.fillMaxSize()) {
             screen(destination)
         }
