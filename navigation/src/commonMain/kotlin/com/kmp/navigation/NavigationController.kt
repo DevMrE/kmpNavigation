@@ -78,6 +78,9 @@ class NavigationController : Navigation {
     }
 
     override fun switchTo(section: NavSection, transition: NavTransitionSpec?) {
+        Logger.i("NavController") { "switchTo(navSection): $section" }
+        Logger.i("NavController") { "backStack before: $backStack" }
+
         val shellChain = buildShellChain(section)
         if (shellChain.isEmpty()) {
             Logger.w("NavigationController") { "switchTo($section): Could not build shell chain." }
@@ -100,10 +103,14 @@ class NavigationController : Navigation {
             }
         }
 
+        Logger.i("NavController") { "backStack after: $backStack" }
         updateState()
     }
 
     override fun <D : NavDestination> switchTo(destination: D, transition: NavTransitionSpec?) {
+        Logger.i("NavController") { "switchTo(destination): $destination" }
+        Logger.i("NavController") { "backStack before: $backStack" }
+
         val section = sectionOf(destination)
 
         lastEvent = NavigationEvent.SwitchTo
@@ -131,6 +138,7 @@ class NavigationController : Navigation {
         // Save as last tab (never a shell root here)
         section?.let { lastTabPerSection[it] = destination }
 
+        Logger.i("NavController") { "backStack after: $backStack" }
         updateState()
     }
 

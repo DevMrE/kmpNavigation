@@ -64,6 +64,10 @@ inline fun <reified S : NavSection> NavigationContent(
         NavigationGraph.isSectionShellRoot(destination, S::class)
     }
 
+    Logger.i("NavigationContent") {
+        "Section: ${S::class.simpleName}, backStack: ${navState.backStack}, shellRootIndex: $shellRootIndex, current: ${if (shellRootIndex >= 0 && shellRootIndex + 1 < navState.backStack.size) navState.backStack[shellRootIndex + 1] else null}"
+    }
+
     val current = if (shellRootIndex >= 0 && shellRootIndex + 1 < navState.backStack.size) {
         navState.backStack[shellRootIndex + 1]
     } else {
