@@ -1,5 +1,6 @@
 package com.kmp.navigation
 
+import co.touchlab.kermit.Logger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -106,6 +107,11 @@ class NavigationController : Navigation {
         lastEvent = NavigationEvent.SwitchTo
 
         val shellChain = buildShellChain(section)
+
+        Logger.i("NavigationController") { "switchTo($section) → shellChain: $shellChain" }
+        Logger.i("NavigationController") { "sectionRoots: $sectionRoots" }
+        Logger.i("NavigationController") { "parentSections: $parentSections" }
+
         if (shellChain.isEmpty()) { updateState(); return }
 
         backStack.clear()

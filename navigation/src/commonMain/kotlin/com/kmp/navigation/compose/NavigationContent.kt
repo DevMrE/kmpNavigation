@@ -118,6 +118,8 @@ inline fun <reified S : NavSection> NavigationContent(
         navState.backStack[shellRootIndex + 1]
     } else return
 
+    Logger.i("NavigationContent") { "Section: ${S::class.simpleName}, backStack: ${navState.backStack}, shellRootIndex: $shellRootIndex" }
+
     AnimatedContent(
         modifier = modifier,
         targetState = current,
