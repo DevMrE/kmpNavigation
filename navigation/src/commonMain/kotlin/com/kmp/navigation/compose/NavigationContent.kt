@@ -1,16 +1,9 @@
 package com.kmp.navigation.compose
 
 import androidx.compose.animation.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavEntry
-import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
@@ -103,7 +96,7 @@ internal fun RenderSection(
             .firstOrNull { NavigationGraph.parentSectionOf(it) == null }
 
         if (topLevelSection != section) {
-            Logger.d("NavigationContent") {
+            Logger.d("KmpNavigation") {
                 "renderSection(${section::class.simpleName}, isRoot=true): " +
                         "not active top-level section (active: ${topLevelSection?.let { it::class.simpleName }}). Skipping."
             }
@@ -117,12 +110,12 @@ internal fun RenderSection(
         }
     }
 
-    Logger.i("NavigationContent") {
+    Logger.i("KmpNavigation") {
         "renderSection(${section::class.simpleName}, isRoot=$isRoot) subStack: $subStack"
     }
 
     if (subStack.isEmpty()) {
-        Logger.w("NavigationContent") {
+        Logger.w("KmpNavigation") {
             "renderSection(${section::class.simpleName}): subStack is empty – nothing to render."
         }
         return
@@ -147,42 +140,28 @@ internal fun RenderSection(
     }
 
     NavDisplay(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Blue), // ← direkt auf NavDisplay
+        modifier = modifier,
         backStack = subStack,
         onBack = { GlobalNavigation.navigation.navigateUp() },
+        entryDecorators = listOf(
+            rememberSaveableStateHolderNavEntryDecorator()
+        ),
+        transitionSpec = transitionSpec ?: defaultTransitionSpec,
+        popTransitionSpec = popTransitionSpec ?: defaultPopTransitionSpec,
+        predictivePopTransitionSpec = predictivePopTransitionSpec
+            ?: defaultPredictivePopTransitionSpec,
         entryProvider = { destination ->
             NavEntry(key = destination) {
-                Box(
-                    modifier = Modifier
-                        .background(Color.Red)
-                        .size(100.dp)
-                )
+                val screenData = NavigationGraph.findScreenWithMetadata(destination)
+                if (screenData == null) {
+                    Logger.w("KmpNavigation") {
+                        "No screen registered for ${destination::class.simpleName}."
+                    }
+                    return@NavEntry
+                }
+
+                screenData.content(destination)
             }
         }
     )
-//    NavDisplay(
-//        modifier = modifier,
-//        backStack = subStack,
-//        onBack = { GlobalNavigation.navigation.navigateUp() },
-//        entryDecorators = listOf(
-//            rememberSaveableStateHolderNavEntryDecorator()
-//        ),
-//        transitionSpec = transitionSpec ?: defaultTransitionSpec,
-//        popTransitionSpec = popTransitionSpec ?: defaultPopTransitionSpec,
-//        predictivePopTransitionSpec = predictivePopTransitionSpec
-//            ?: defaultPredictivePopTransitionSpec,
-//        entryProvider = { destination ->
-//            NavEntry(key = destination) {
-//                // Kein Screen-Content – nur eine farbige Box
-//                Box(
-//                    modifier = Modifier
-//                        .background(Color.Red)
-//                        .size(100.dp)
-//                )
-//            }
-//        }
-//    )
-
 }
