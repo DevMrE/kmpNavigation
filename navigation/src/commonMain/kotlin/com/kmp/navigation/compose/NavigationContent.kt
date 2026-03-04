@@ -1,6 +1,12 @@
 package com.kmp.navigation.compose
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -91,9 +97,7 @@ fun NavigationRoot(
                     if (isScreenOnTop) {
                         val data = NavigationGraph.findScreen(destination)
                         if (data == null) {
-                            Logger.w("NavigationRoot") {
-                                "No screen for ${destination::class.simpleName}."
-                            }
+                            Logger.w("KmpNavigation") { "No screen for ${destination::class.simpleName}." }
                             return@NavEntry
                         }
                         data.content(destination)
@@ -131,9 +135,7 @@ inline fun <reified T : NavTabs> NavigationTabs(
     val activeDestination = remember(navState.backStack, navState.lastEvent) {
         controller.activeDestinationFor(tabsClass)
     } ?: run {
-        Logger.w("NavigationTabs") {
-            "NavigationTabs<${T::class.simpleName}>: no active destination found."
-        }
+        Logger.w("NavigationTabs") { "NavigationTabs<${T::class.simpleName}>: no active destination found." }
         return
     }
 
@@ -170,16 +172,9 @@ inline fun <reified T : NavTabs> NavigationTabs(
                 }
             }
         },
-        label = "NavigationTabs<${T::class.simpleName}>"
+        label = "KmpNavigation<${T::class.simpleName}>"
     ) { destination ->
-        val data = NavigationGraph.findScreen(destination)
-        if (data == null) {
-            Logger.w("NavigationTabs") {
-                "No screen for ${destination::class.simpleName}."
-            }
-            return@AnimatedContent
-        }
-        data.content(destination)
+        HandleDestination(destination)
     }
 }
 
@@ -207,45 +202,69 @@ inline fun <reified D : NavDestination> NavigationContent(
 
     val currentDestination = navState.backStack.lastOrNull {
         it is D && NavigationGraph.findTabs(it) == null && NavigationGraph.typeOf(it) == NavDestinationType.Content
-    } ?: RootSentinel
-
-    val lastEvent = navState.lastEvent
-
-    AnimatedContent(
-        modifier = modifier.clipToBounds(),
-        targetState = currentDestination,
-        transitionSpec = {
-            val targetData = NavigationGraph.findScreen(targetState)
-            val initialData = NavigationGraph.findScreen(initialState)
-
-            when (lastEvent) {
-                NavigationEvent.NavigateUp,
-                NavigationEvent.PopBackTo -> {
-                    val enter = targetData?.enterTransition?.invoke(this)
-                    val exit = initialData?.exitTransition?.invoke(this)
-                    if (enter != null && exit != null) enter togetherWith exit
-                    else DefaultNavAnimations.popEnterTransition
-                }
-
-                else -> {
-                    val enter = targetData?.enterTransition?.invoke(this)
-                    val exit = initialData?.exitTransition?.invoke(this)
-                    if (enter != null && exit != null) enter togetherWith exit
-                    else DefaultNavAnimations.enterTransition
-                }
-            }
-        },
-        label = "NavigationContent<${D::class.simpleName}>"
-    ) { destination ->
-        if (destination is RootSentinel) return@AnimatedContent
-
-        val data = NavigationGraph.findScreen(destination)
-        if (data == null) {
-            Logger.w("NavigationContent") {
-                "No screen for ${destination::class.simpleName}."
-            }
-            return@AnimatedContent
-        }
-        data.content(destination)
     }
+
+    val currentEvent = controller.state.value.lastEvent
+
+    AnimatedVisibility(
+        modifier = modifier.clipToBounds(),
+        visible = currentDestination != null,
+        enter = when (currentEvent) {
+            NavigationEvent.NavigateUp,
+            NavigationEvent.PopBackTo -> slideInHorizontally { -it } + fadeIn()
+
+            else -> slideInHorizontally { it } + fadeIn()
+        },
+        exit = when (currentEvent) {
+            NavigationEvent.NavigateUp,
+            NavigationEvent.PopBackTo -> slideOutHorizontally { it } + fadeOut()
+
+            else -> slideOutHorizontally { -it } + fadeOut()
+        }
+    ) {
+        AnimatedContent(
+            targetState = currentDestination,
+            transitionSpec = {
+                val targetData = targetState?.let { NavigationGraph.findScreen(it) }
+                val initialData = initialState?.let { NavigationGraph.findScreen(it) }
+                val event = controller.state.value.lastEvent
+                val enter = targetData?.enterTransition?.invoke(
+                    this as AnimatedContentTransitionScope<NavDestination>
+                )
+
+                val exit =
+                    initialData?.exitTransition?.invoke(this as AnimatedContentTransitionScope<NavDestination>)
+
+                when (event) {
+                    NavigationEvent.NavigateUp,
+                    NavigationEvent.PopBackTo -> {
+                        if (enter != null && exit != null) enter togetherWith exit
+                        else DefaultNavAnimations.popEnterTransition
+                    }
+
+                    else -> {
+                        if (enter != null && exit != null) enter togetherWith exit
+                        else DefaultNavAnimations.enterTransition
+                    }
+                }
+            },
+            label = "KmpNavigation<${D::class.simpleName}>"
+        ) { destination ->
+            HandleDestination(destination)
+        }
+    }
+}
+
+@Composable
+@PublishedApi
+internal fun HandleDestination(destination: NavDestination?) {
+    if (destination == null) return
+    val data = NavigationGraph.findScreen(destination)
+    if (data == null) {
+        Logger.w("KmpNavigation") {
+            "No screen for ${destination::class.simpleName}."
+        }
+        return
+    }
+    data.content(destination)
 }
