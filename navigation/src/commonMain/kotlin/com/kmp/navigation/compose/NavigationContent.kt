@@ -1,12 +1,11 @@
 package com.kmp.navigation.compose
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavEntry
-import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
@@ -163,7 +162,9 @@ internal fun RenderSection(
                     return@NavEntry
                 }
 
-                screenData.content(destination)
+                Box(modifier = Modifier.fillMaxSize()) {
+                    screenData.content(destination)
+                }
             }
         }
     )
