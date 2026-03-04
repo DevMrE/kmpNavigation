@@ -1,5 +1,6 @@
 package com.kmp.navigation
 
+import androidx.compose.runtime.Composable
 import co.touchlab.kermit.Logger
 import kotlin.reflect.KClass
 
@@ -79,9 +80,10 @@ object NavigationGraph {
         }
     }
 
-    internal fun findScreenWithMetadata(
+    internal fun findScreen(
         destination: NavDestination
-    ): NavScreenData? = screens[destination::class]
+    ): (@Composable (NavDestination) -> Unit)? = screens[destination::class]?.content
+
 
     fun sectionInstanceFor(
         sectionClass: KClass<out NavSection>

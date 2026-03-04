@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.Scene
@@ -155,7 +154,7 @@ internal fun RenderSection(
             ?: defaultPredictivePopTransitionSpec,
         entryProvider = entryProvider {
             entry<NavDestination> { destination ->
-                val screen = NavigationGraph.findScreenWithMetadata(destination)
+                val screen = NavigationGraph.findScreen(destination)
                 if (screen == null) {
                     Logger.w("NavigationContent") {
                         "No screen registered for ${destination::class.simpleName}."
@@ -164,7 +163,7 @@ internal fun RenderSection(
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {
-                    screen.content(destination)
+                    screen(destination)
                 }
             }
         }
