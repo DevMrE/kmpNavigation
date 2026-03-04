@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -26,15 +27,74 @@ import com.kmp.navigation.NavigationEvent
 import com.kmp.navigation.NavigationGraph
 
 /**
- * Renders the currently active destination within a tabs group [NavTabs].
- *
- * - Respects parent bounds via [modifier]
- * - Animates between destinations
- * - For `screen` type destinations, renders fullscreen regardless of modifier
+ * Place this ONCE at the very top of your app.
+ * Handles all screen destinations fullscreen + back navigation via NavDisplay.
+ * Tab content is rendered via NavigationContent<T> within your Scaffold.
  *
  * ```kotlin
- * // In AppScreen:
- * NavigationContent<AppRoot>(Modifier.padding(padding))
+ * @Composable
+ * fun MobileAppScreen() {
+ *     AppTheme {
+ *         NavigationHost {
+ *             AppContent()
+ *         }
+ *     }
+ * }
+ * ```
+ */
+@Composable
+fun NavigationHost(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val controller = GlobalNavigation.controller
+    val navState by controller.state.collectAsState()
+
+    // Full backStack for NavDisplay – handles back navigation on all platforms
+    val fullBackStack = remember(navState.backStack) {
+        mutableStateListOf<NavDestination>().also {
+            it.addAll(navState.backStack)
+        }
+    }
+
+    val isScreenOnTop = navState.backStack.lastOrNull()?.let {
+        NavigationGraph.typeOf(it) == NavDestinationType.Screen
+    } ?: false
+
+    Box(modifier = modifier.fillMaxSize()) {
+        // Always render tab content below
+        content()
+
+        // NavDisplay handles screen destinations + back navigation
+        if (isScreenOnTop) {
+            NavDisplay(
+                modifier = Modifier.fillMaxSize(),
+                backStack = fullBackStack,
+                onBack = { GlobalNavigation.navigation.navigateUp() },
+                entryProvider = { destination ->
+                    NavEntry(key = destination) {
+                        val data = NavigationGraph.findScreen(destination)
+                        if (data == null) {
+                            Logger.w("NavigationHost") {
+                                "No screen for ${destination::class.simpleName}."
+                            }
+                            return@NavEntry
+                        }
+                        data.content(destination)
+                    }
+                }
+            )
+        }
+    }
+}
+
+/**
+ * Renders the currently active destination within a tabs group [T].
+ * Respects parent bounds via [modifier].
+ *
+ * ```kotlin
+ * // In AppContent:
+ * NavigationContent<BottomBarTabs>(Modifier.padding(padding))
  *
  * // In HomeContent:
  * NavigationContent<HomeTabs>(Modifier.weight(1f))
@@ -48,42 +108,6 @@ inline fun <reified T : NavTabs> NavigationContent(
     val controller = GlobalNavigation.controller
     val navState by controller.state.collectAsState()
     val tabsClass = T::class
-
-    val topDestination = navState.backStack.lastOrNull()
-    val isScreenOnTop = topDestination?.let {
-        NavigationGraph.typeOf(it) == NavDestinationType.Screen
-    } ?: false
-
-    if (isScreenOnTop) {
-        val screenBackStack = remember(navState.backStack) {
-            mutableStateListOf<NavDestination>().also { list ->
-                list.addAll(
-                    navState.backStack.filter {
-                        NavigationGraph.typeOf(it) == NavDestinationType.Screen
-                    }
-                )
-            }
-        }
-
-        NavDisplay(
-            modifier = Modifier.fillMaxSize(),
-            backStack = screenBackStack,
-            onBack = { GlobalNavigation.navigation.navigateUp() },
-            entryProvider = { destination ->
-                NavEntry(key = destination) {
-                    val data = NavigationGraph.findScreen(destination)
-                    if (data == null) {
-                        Logger.w("NavigationContent") {
-                            "No screen for ${destination::class.simpleName}."
-                        }
-                        return@NavEntry
-                    }
-                    data.content(destination)
-                }
-            }
-        )
-        return
-    }
 
     val activeDestination = remember(navState.backStack, navState.lastEvent) {
         controller.activeDestinationFor(tabsClass)
