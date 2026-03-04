@@ -9,13 +9,17 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import co.touchlab.kermit.Logger
@@ -48,10 +52,12 @@ import com.kmp.navigation.NavigationGraph
 @Composable
 fun NavigationRoot(
     modifier: Modifier = Modifier,
+    exitScreen: @Composable ((onConfirm: () -> Unit) -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     val controller = GlobalNavigation.controller
     val navState by controller.state.collectAsState()
+    var showExitScreen by remember { mutableStateOf(false) }
 
     val isScreenOnTop = navState.backStack.lastOrNull()?.let {
         NavigationGraph.typeOf(it) == NavDestinationType.Screen
@@ -66,13 +72,27 @@ fun NavigationRoot(
     Box(modifier = modifier.fillMaxSize()) {
         content()
 
-        if (isScreenOnTop) {
-            NavDisplay(
-                modifier = Modifier.fillMaxSize(),
-                backStack = fullBackStack,
-                onBack = { GlobalNavigation.navigation.navigateUp() },
-                entryProvider = { destination ->
-                    NavEntry(key = destination) {
+        if (showExitScreen) {
+            exitScreen?.invoke {
+                // onConfirm – navigateUp intern aufgerufen
+                controller.navigateUp()
+                showExitScreen = false
+            }
+        }
+
+        NavDisplay(
+            modifier = if (isScreenOnTop) Modifier.fillMaxSize() else Modifier.size(0.dp),
+            backStack = fullBackStack,
+            onBack = {
+                if (navState.backStack.size <= 1) {
+                    showExitScreen = true
+                } else {
+                    controller.navigateUp()
+                }
+            },
+            entryProvider = { destination ->
+                NavEntry(key = destination) {
+                    if (isScreenOnTop) {
                         val data = NavigationGraph.findScreen(destination)
                         if (data == null) {
                             Logger.w("NavigationRoot") {
@@ -83,8 +103,8 @@ fun NavigationRoot(
                         data.content(destination)
                     }
                 }
-            )
-        }
+            }
+        )
     }
 }
 

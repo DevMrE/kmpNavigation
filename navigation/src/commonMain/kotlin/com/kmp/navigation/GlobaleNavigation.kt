@@ -3,10 +3,11 @@ package com.kmp.navigation
 /**
  * Global singleton holder for the [Navigation] instance.
  */
-object GlobalNavigation {
-
+@PublishedApi
+internal object GlobalNavigation {
     val navigation: Navigation by lazy { NavigationController() }
 
-    val controller: NavigationController
+    @PublishedApi
+    internal val controller: NavigationController
         get() = navigation as NavigationController
 }
