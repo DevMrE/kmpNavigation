@@ -26,11 +26,11 @@ fun rememberNavigation(): Navigation = remember { NavigationFactory.create() }
  * Observes the current destination at the top of the BackStack.
  *
  * ```kotlin
- * val current = rememberCurrentDestination()
+ * val current = rememberNavDestination()
  * ```
  */
 @Composable
-fun rememberCurrentDestination(): NavDestination? {
+fun rememberNavDestination(): NavDestination? {
     val state by GlobalNavigation.controller.state.collectAsState()
     return state.currentDestination
 }

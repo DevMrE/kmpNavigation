@@ -12,7 +12,8 @@ import androidx.navigation3.ui.NavDisplay
 import co.touchlab.kermit.Logger
 import com.kmp.navigation.*
 
-private object RootSentinel : NavDestination
+@PublishedApi
+internal object RootSentinel : NavDestination
 
 /**
  * Root-level navigation host.
@@ -206,7 +207,7 @@ inline fun <reified D : NavDestination> NavigationContent(
 
     val currentDestination = navState.backStack.lastOrNull {
         it is D && NavigationGraph.findTabs(it) == null && NavigationGraph.typeOf(it) == NavDestinationType.Content
-    } ?: return
+    } ?: RootSentinel
 
     val lastEvent = navState.lastEvent
 
@@ -231,12 +232,13 @@ inline fun <reified D : NavDestination> NavigationContent(
                     val exit = initialData?.exitTransition?.invoke(this)
                     if (enter != null && exit != null) enter togetherWith exit
                     else DefaultNavAnimations.enterTransition
-
                 }
             }
         },
         label = "NavigationContent<${D::class.simpleName}>"
     ) { destination ->
+        if (destination is RootSentinel) return@AnimatedContent
+
         val data = NavigationGraph.findScreen(destination)
         if (data == null) {
             Logger.w("NavigationContent") {
