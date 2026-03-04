@@ -1,33 +1,16 @@
 package com.kmp.navigation.compose
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import co.touchlab.kermit.Logger
-import com.kmp.navigation.GlobalNavigation
-import com.kmp.navigation.NavDestination
-import com.kmp.navigation.NavDestinationType
-import com.kmp.navigation.NavTabs
-import com.kmp.navigation.NavigationEvent
-import com.kmp.navigation.NavigationFactory
-import com.kmp.navigation.NavigationGraph
+import com.kmp.navigation.*
 
 private object RootSentinel : NavDestination
 
@@ -38,12 +21,17 @@ private object RootSentinel : NavDestination
  * Handles:
  * - `screen` destinations fullscreen via NavDisplay
  * - Back navigation on all platforms via NavDisplay.onBack
+ * - Optional [exitScreen] composable shown when BackStack is empty and user navigates back
  *
  * ```kotlin
  * @Composable
  * fun MobileAppScreen() {
  *     AppTheme {
- *         NavigationRoot {
+ *         NavigationRoot(
+ *             exitScreen = { onConfirm ->
+ *                 ExitConfirmDialog(onConfirm = onConfirm)
+ *             }
+ *         ) {
  *             AppContent()
  *         }
  *     }
@@ -66,7 +54,7 @@ fun NavigationRoot(
 
     val navDisplayBackStack = remember(navState.backStack) {
         mutableStateListOf<NavDestination>().also { list ->
-            // Sentinel ist immer drin – NavDisplay crasht nicht
+            // Sentinel is always present – NavDisplay requires non-empty backStack
             list.add(RootSentinel)
             list.addAll(
                 navState.backStack.filter { dest ->
@@ -120,6 +108,9 @@ fun NavigationRoot(
  * Respects parent bounds via [modifier].
  * Does NOT handle back navigation – NavigationRoot handles that.
  *
+ * Animations are resolved per destination from the registration.
+ * If no animation is defined for a destination, default animations are used.
+ *
  * ```kotlin
  * // In AppContent:
  * NavigationTabs<BottomBarTabs>(Modifier.fillMaxSize())
@@ -131,7 +122,6 @@ fun NavigationRoot(
 @Composable
 inline fun <reified T : NavTabs> NavigationTabs(
     modifier: Modifier = Modifier,
-    noinline transitionSpec: (() -> ContentTransform)? = null
 ) {
     val controller = NavigationFactory.controller()
     val navState by controller.state.collectAsState()
@@ -148,22 +138,37 @@ inline fun <reified T : NavTabs> NavigationTabs(
 
     val lastEvent = navState.lastEvent
 
-    val defaultTransitionSpec: () -> ContentTransform = {
-        when (lastEvent) {
-            NavigationEvent.SwitchTab -> fadeIn() togetherWith fadeOut()
-            NavigationEvent.NavigateUp,
-            NavigationEvent.PopBackTo -> slideInHorizontally { -it } + fadeIn() togetherWith
-                    slideOutHorizontally { it } + fadeOut()
-
-            else -> slideInHorizontally { it } + fadeIn() togetherWith
-                    slideOutHorizontally { -it } + fadeOut()
-        }
-    }
-
     AnimatedContent(
         modifier = modifier.clipToBounds(),
         targetState = activeDestination,
-        transitionSpec = { transitionSpec?.invoke() ?: defaultTransitionSpec() },
+        transitionSpec = {
+            val targetData = NavigationGraph.findScreen(targetState)
+            val initialData = NavigationGraph.findScreen(initialState)
+
+            when (lastEvent) {
+                NavigationEvent.SwitchTab -> {
+                    val enter = targetData?.enterTransition?.invoke(this)
+                    val exit = initialData?.exitTransition?.invoke(this)
+                    if (enter != null && exit != null) enter togetherWith exit
+                    else DefaultNavAnimations.tabSwitchTransition
+                }
+
+                NavigationEvent.NavigateUp,
+                NavigationEvent.PopBackTo -> {
+                    val enter = targetData?.enterTransition?.invoke(this)
+                    val exit = initialData?.exitTransition?.invoke(this)
+                    if (enter != null && exit != null) enter togetherWith exit
+                    else DefaultNavAnimations.popEnterTransition
+                }
+
+                else -> {
+                    val enter = targetData?.enterTransition?.invoke(this)
+                    val exit = initialData?.exitTransition?.invoke(this)
+                    if (enter != null && exit != null) enter togetherWith exit
+                    else DefaultNavAnimations.enterTransition
+                }
+            }
+        },
         label = "NavigationTabs<${T::class.simpleName}>"
     ) { destination ->
         val data = NavigationGraph.findScreen(destination)
@@ -182,6 +187,9 @@ inline fun <reified T : NavTabs> NavigationTabs(
  * Respects parent bounds via [modifier].
  * Only renders when [D] is the current non-tab content destination on top of the BackStack.
  *
+ * Animations are resolved per destination from the registration.
+ * If no animation is defined for a destination, default animations are used.
+ *
  * ```kotlin
  * Box(Modifier.fillMaxSize().padding(padding)) {
  *     NavigationTabs<BottomBarTabs>(Modifier.fillMaxSize())
@@ -192,7 +200,6 @@ inline fun <reified T : NavTabs> NavigationTabs(
 @Composable
 inline fun <reified D : NavDestination> NavigationContent(
     modifier: Modifier = Modifier,
-    noinline transitionSpec: (() -> ContentTransform)? = null
 ) {
     val controller = NavigationFactory.controller()
     val navState by controller.state.collectAsState()
@@ -203,21 +210,31 @@ inline fun <reified D : NavDestination> NavigationContent(
 
     val lastEvent = navState.lastEvent
 
-    val defaultTransitionSpec: () -> ContentTransform = {
-        when (lastEvent) {
-            NavigationEvent.NavigateUp,
-            NavigationEvent.PopBackTo -> slideInHorizontally { -it } + fadeIn() togetherWith
-                    slideOutHorizontally { it } + fadeOut()
-
-            else -> slideInHorizontally { it } + fadeIn() togetherWith
-                    slideOutHorizontally { -it } + fadeOut()
-        }
-    }
-
     AnimatedContent(
         modifier = modifier.clipToBounds(),
         targetState = currentDestination,
-        transitionSpec = { transitionSpec?.invoke() ?: defaultTransitionSpec() },
+        transitionSpec = {
+            val targetData = NavigationGraph.findScreen(targetState)
+            val initialData = NavigationGraph.findScreen(initialState)
+
+            when (lastEvent) {
+                NavigationEvent.NavigateUp,
+                NavigationEvent.PopBackTo -> {
+                    val enter = targetData?.enterTransition?.invoke(this)
+                    val exit = initialData?.exitTransition?.invoke(this)
+                    if (enter != null && exit != null) enter togetherWith exit
+                    else DefaultNavAnimations.popEnterTransition
+                }
+
+                else -> {
+                    val enter = targetData?.enterTransition?.invoke(this)
+                    val exit = initialData?.exitTransition?.invoke(this)
+                    if (enter != null && exit != null) enter togetherWith exit
+                    else DefaultNavAnimations.enterTransition
+
+                }
+            }
+        },
         label = "NavigationContent<${D::class.simpleName}>"
     ) { destination ->
         val data = NavigationGraph.findScreen(destination)

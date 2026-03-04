@@ -1,5 +1,8 @@
 package com.kmp.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 
 /**
@@ -8,6 +11,7 @@ import androidx.compose.runtime.Composable
 enum class NavDestinationType {
     /** Respects parent bounds, lands in BackStack */
     Content,
+
     /** Fullscreen – breaks out of parent bounds, lands in BackStack */
     Screen
 }
@@ -17,5 +21,7 @@ enum class NavDestinationType {
  */
 data class NavScreenData(
     val content: @Composable (NavDestination) -> Unit,
-    val type: NavDestinationType
+    val type: NavDestinationType,
+    val enterTransition: (AnimatedContentTransitionScope<NavDestination>.() -> EnterTransition)? = null,
+    val exitTransition: (AnimatedContentTransitionScope<NavDestination>.() -> ExitTransition)? = null
 )
