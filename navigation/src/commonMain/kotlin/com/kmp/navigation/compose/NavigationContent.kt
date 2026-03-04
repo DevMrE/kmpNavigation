@@ -62,26 +62,30 @@ fun NavigationRoot(
         NavigationGraph.typeOf(it) == NavDestinationType.Screen
     } ?: false
 
-    val fullBackStack = remember(navState.backStack) {
+    val navDisplayBackStack = remember(navState.backStack) {
         mutableStateListOf<NavDestination>().also {
-            it.addAll(navState.backStack)
+            it.addAll(
+                elements = navState.backStack.filter { dest ->
+                    NavigationGraph.findTabs(dest) == null
+                }
+            )
         }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
         content()
 
-//        if (showExitScreen && exitScreen != null) {
-//            exitScreen.invoke {
-//                // onConfirm – navigateUp intern aufgerufen
-//                controller.navigateUp()
-//                showExitScreen = false
-//            }
-//        }
+        if (showExitScreen && exitScreen != null) {
+            exitScreen.invoke {
+                // onConfirm – navigateUp intern aufgerufen
+                controller.navigateUp()
+                showExitScreen = false
+            }
+        }
 
         NavDisplay(
             modifier = if (isScreenOnTop) Modifier.fillMaxSize() else Modifier,
-            backStack = fullBackStack,
+            backStack = navDisplayBackStack,
             onBack = {
                 if (navState.backStack.size <= 1) {
                     showExitScreen = true
@@ -189,9 +193,7 @@ inline fun <reified D : NavDestination> NavigationContent(
     val navState by controller.state.collectAsState()
 
     val currentDestination = navState.backStack.lastOrNull {
-        it is D &&
-                NavigationGraph.findTabs(it) == null &&
-                NavigationGraph.typeOf(it) == NavDestinationType.Content
+        it is D && NavigationGraph.findTabs(it) == null && NavigationGraph.typeOf(it) == NavDestinationType.Content
     } ?: return
 
     val lastEvent = navState.lastEvent
