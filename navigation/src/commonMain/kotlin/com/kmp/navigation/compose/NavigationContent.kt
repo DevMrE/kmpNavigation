@@ -28,6 +28,7 @@ import com.kmp.navigation.NavDestination
 import com.kmp.navigation.NavDestinationType
 import com.kmp.navigation.NavTabs
 import com.kmp.navigation.NavigationEvent
+import com.kmp.navigation.NavigationFactory
 import com.kmp.navigation.NavigationGraph
 
 /**
@@ -126,7 +127,7 @@ inline fun <reified T : NavTabs> NavigationTabs(
     modifier: Modifier = Modifier,
     noinline transitionSpec: (() -> ContentTransform)? = null
 ) {
-    val controller = GlobalNavigation.controller
+    val controller = NavigationFactory.controller()
     val navState by controller.state.collectAsState()
     val tabsClass = T::class
 
@@ -186,7 +187,7 @@ inline fun <reified D : NavDestination> NavigationContent(
     modifier: Modifier = Modifier,
     noinline transitionSpec: (() -> ContentTransform)? = null
 ) {
-    val controller = GlobalNavigation.controller
+    val controller = NavigationFactory.controller()
     val navState by controller.state.collectAsState()
 
     val currentDestination = navState.backStack.lastOrNull {
