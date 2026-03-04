@@ -1,14 +1,12 @@
 package com.kmp.navigation
 
-import androidx.compose.runtime.Composable
 import co.touchlab.kermit.Logger
 import kotlin.reflect.KClass
 
 object NavigationGraph {
 
     private val screens =
-        mutableMapOf<KClass<out NavDestination>, @Composable (NavDestination) -> Unit>()
-
+        mutableMapOf<KClass<out NavDestination>, NavScreenData>()
     private val destinationSections =
         mutableMapOf<KClass<out NavDestination>, NavSection>()
     private val sectionRoots =
@@ -40,7 +38,7 @@ object NavigationGraph {
                         "${key.simpleName} already registered – skipping."
                     }
                 } else {
-                    screens[key] = screenData.content
+                    screens[key] = screenData
                 }
             },
             registerDestinationSection = { key, section ->
@@ -81,10 +79,9 @@ object NavigationGraph {
         }
     }
 
-    internal fun findScreen(
+    internal fun findScreenWithMetadata(
         destination: NavDestination
-    ): (@Composable (NavDestination) -> Unit)? = screens[destination::class]
-
+    ): NavScreenData? = screens[destination::class]
 
     fun sectionInstanceFor(
         sectionClass: KClass<out NavSection>

@@ -1,16 +1,11 @@
 package com.kmp.navigation.compose
 
 import androidx.compose.animation.*
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavEntry
-import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
@@ -147,42 +142,29 @@ internal fun RenderSection(
     }
 
     NavDisplay(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Blue), // ← direkt auf NavDisplay
+        modifier = modifier,
         backStack = subStack,
         onBack = { GlobalNavigation.navigation.navigateUp() },
+        entryDecorators = listOf(
+            rememberSaveableStateHolderNavEntryDecorator()
+        ),
+        transitionSpec = transitionSpec ?: defaultTransitionSpec,
+        popTransitionSpec = popTransitionSpec ?: defaultPopTransitionSpec,
+        predictivePopTransitionSpec = predictivePopTransitionSpec
+            ?: defaultPredictivePopTransitionSpec,
         entryProvider = { destination ->
             NavEntry(key = destination) {
-                Box(
-                    modifier = Modifier
-                        .background(Color.Red)
-                        .size(100.dp)
-                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    val screenData = NavigationGraph.findScreenWithMetadata(destination)
+                    if (screenData == null) {
+                        Logger.w("NavigationContent") {
+                            "No screen registered for ${destination::class.simpleName}."
+                        }
+                        return@NavEntry
+                    }
+                    screenData.content(destination)
+                }
             }
         }
     )
-//    NavDisplay(
-//        modifier = modifier,
-//        backStack = subStack,
-//        onBack = { GlobalNavigation.navigation.navigateUp() },
-//        entryDecorators = listOf(
-//            rememberSaveableStateHolderNavEntryDecorator()
-//        ),
-//        transitionSpec = transitionSpec ?: defaultTransitionSpec,
-//        popTransitionSpec = popTransitionSpec ?: defaultPopTransitionSpec,
-//        predictivePopTransitionSpec = predictivePopTransitionSpec
-//            ?: defaultPredictivePopTransitionSpec,
-//        entryProvider = { destination ->
-//            NavEntry(key = destination) {
-//                // Kein Screen-Content – nur eine farbige Box
-//                Box(
-//                    modifier = Modifier
-//                        .background(Color.Red)
-//                        .size(100.dp)
-//                )
-//            }
-//        }
-//    )
-
 }
