@@ -29,6 +29,8 @@ import com.kmp.navigation.NavigationEvent
 import com.kmp.navigation.NavigationFactory
 import com.kmp.navigation.NavigationGraph
 
+private object RootSentinel : NavDestination
+
 /**
  * Root-level navigation host.
  * Place this ONCE at the very top of your app.
@@ -64,17 +66,13 @@ fun NavigationRoot(
 
     val navDisplayBackStack = remember(navState.backStack) {
         mutableStateListOf<NavDestination>().also { list ->
-            val nonTabDestinations = navState.backStack.filter { dest ->
-                NavigationGraph.findTabs(dest) == null
-            }
-
-            // NavDisplay requires at least one entry
-            if (nonTabDestinations.isNotEmpty()) {
-                list.addAll(nonTabDestinations)
-            } else {
-                // Fallback: use current destination so NavDisplay doesn't crash
-                navState.backStack.lastOrNull()?.let { list.add(it) }
-            }
+            // Sentinel ist immer drin – NavDisplay crasht nicht
+            list.add(RootSentinel)
+            list.addAll(
+                navState.backStack.filter { dest ->
+                    NavigationGraph.findTabs(dest) == null
+                }
+            )
         }
     }
 
@@ -92,7 +90,8 @@ fun NavigationRoot(
             modifier = if (isScreenOnTop) Modifier.fillMaxSize() else Modifier,
             backStack = navDisplayBackStack,
             onBack = {
-                if (navState.backStack.size <= 1) {
+                val nonTabSize = navState.backStack.count { NavigationGraph.findTabs(it) == null }
+                if (nonTabSize == 0) {
                     showExitScreen = true
                 } else {
                     controller.navigateUp()
