@@ -4,12 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import com.kmp.navigation.GlobalNavigation
-import com.kmp.navigation.NavDestination
-import com.kmp.navigation.NavTabs
-import com.kmp.navigation.Navigation
-import com.kmp.navigation.NavigationFactory
-import com.kmp.navigation.NavigationGraph
+import com.kmp.navigation.*
 
 /**
  * Returns the singleton [Navigation] instance.
