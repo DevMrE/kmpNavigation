@@ -134,6 +134,13 @@ class NavigationController : Navigation {
      * Remembers the last active destination per group.
      */
     private fun switchTab(destination: NavDestination, tabsClass: KClass<out NavTabs>) {
+        if (lastActivePerGroup[tabsClass]?.let { it::class == destination::class } == true) {
+            Logger.d("NavigationController") {
+                "switchTab: ${destination::class.simpleName} already active – skipping."
+            }
+            return
+        }
+
         lastEvent = NavigationEvent.SwitchTab
 
         // Remember the active destination for this tabs group

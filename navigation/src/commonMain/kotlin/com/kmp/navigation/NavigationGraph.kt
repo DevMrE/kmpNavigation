@@ -80,6 +80,6 @@ object NavigationGraph {
     /**
      * Returns the type of destination.
      */
-    internal fun typeOf(destination: NavDestination): NavDestinationType? =
+    fun typeOf(destination: NavDestination): NavDestinationType? =
         destinations[destination::class]?.type
 }
