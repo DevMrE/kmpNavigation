@@ -193,8 +193,14 @@ inline fun <reified D : NavDestination> NavigationContent(
         it is D && NavigationGraph.findTabs(it) == null && NavigationGraph.typeOf(it) == NavDestinationType.Content
     }
 
+    var lastKnownDestination by remember { mutableStateOf(currentDestination) }
+
+    if (currentDestination != null) {
+        lastKnownDestination = currentDestination
+    }
+
     val currentEvent = controller.state.value.lastEvent
-    val currentDestinationData = currentDestination?.let { NavigationGraph.findScreen(it) }
+    val currentDestinationData = lastKnownDestination?.let { NavigationGraph.findScreen(it) }
 
     AnimatedVisibility(
         modifier = modifier.clipToBounds(),
