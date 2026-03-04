@@ -147,19 +147,13 @@ internal fun RenderSection(
     }
 
     NavDisplay(
-        modifier = modifier,
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Blue), // ← direkt auf NavDisplay
         backStack = subStack,
         onBack = { GlobalNavigation.navigation.navigateUp() },
-        entryDecorators = listOf(
-            rememberSaveableStateHolderNavEntryDecorator()
-        ),
-        transitionSpec = transitionSpec ?: defaultTransitionSpec,
-        popTransitionSpec = popTransitionSpec ?: defaultPopTransitionSpec,
-        predictivePopTransitionSpec = predictivePopTransitionSpec
-            ?: defaultPredictivePopTransitionSpec,
         entryProvider = { destination ->
             NavEntry(key = destination) {
-                // Kein Screen-Content – nur eine farbige Box
                 Box(
                     modifier = Modifier
                         .background(Color.Red)
@@ -168,4 +162,27 @@ internal fun RenderSection(
             }
         }
     )
+//    NavDisplay(
+//        modifier = modifier,
+//        backStack = subStack,
+//        onBack = { GlobalNavigation.navigation.navigateUp() },
+//        entryDecorators = listOf(
+//            rememberSaveableStateHolderNavEntryDecorator()
+//        ),
+//        transitionSpec = transitionSpec ?: defaultTransitionSpec,
+//        popTransitionSpec = popTransitionSpec ?: defaultPopTransitionSpec,
+//        predictivePopTransitionSpec = predictivePopTransitionSpec
+//            ?: defaultPredictivePopTransitionSpec,
+//        entryProvider = { destination ->
+//            NavEntry(key = destination) {
+//                // Kein Screen-Content – nur eine farbige Box
+//                Box(
+//                    modifier = Modifier
+//                        .background(Color.Red)
+//                        .size(100.dp)
+//                )
+//            }
+//        }
+//    )
+
 }
