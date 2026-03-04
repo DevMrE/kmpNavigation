@@ -63,12 +63,18 @@ fun NavigationRoot(
     } ?: false
 
     val navDisplayBackStack = remember(navState.backStack) {
-        mutableStateListOf<NavDestination>().also {
-            it.addAll(
-                elements = navState.backStack.filter { dest ->
-                    NavigationGraph.findTabs(dest) == null
-                }
-            )
+        mutableStateListOf<NavDestination>().also { list ->
+            val nonTabDestinations = navState.backStack.filter { dest ->
+                NavigationGraph.findTabs(dest) == null
+            }
+
+            // NavDisplay requires at least one entry
+            if (nonTabDestinations.isNotEmpty()) {
+                list.addAll(nonTabDestinations)
+            } else {
+                // Fallback: use current destination so NavDisplay doesn't crash
+                navState.backStack.lastOrNull()?.let { list.add(it) }
+            }
         }
     }
 
@@ -77,7 +83,6 @@ fun NavigationRoot(
 
         if (showExitScreen && exitScreen != null) {
             exitScreen.invoke {
-                // onConfirm – navigateUp intern aufgerufen
                 controller.navigateUp()
                 showExitScreen = false
             }
@@ -150,6 +155,7 @@ inline fun <reified T : NavTabs> NavigationTabs(
             NavigationEvent.NavigateUp,
             NavigationEvent.PopBackTo -> slideInHorizontally { -it } + fadeIn() togetherWith
                     slideOutHorizontally { it } + fadeOut()
+
             else -> slideInHorizontally { it } + fadeIn() togetherWith
                     slideOutHorizontally { -it } + fadeOut()
         }
@@ -203,6 +209,7 @@ inline fun <reified D : NavDestination> NavigationContent(
             NavigationEvent.NavigateUp,
             NavigationEvent.PopBackTo -> slideInHorizontally { -it } + fadeIn() togetherWith
                     slideOutHorizontally { it } + fadeOut()
+
             else -> slideInHorizontally { it } + fadeIn() togetherWith
                     slideOutHorizontally { -it } + fadeOut()
         }
