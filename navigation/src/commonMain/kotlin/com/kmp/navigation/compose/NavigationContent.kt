@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
@@ -150,20 +150,18 @@ internal fun RenderSection(
         ),
         transitionSpec = transitionSpec ?: defaultTransitionSpec,
         popTransitionSpec = popTransitionSpec ?: defaultPopTransitionSpec,
-        predictivePopTransitionSpec = predictivePopTransitionSpec
-            ?: defaultPredictivePopTransitionSpec,
-        entryProvider = { destination ->
-            NavEntry(key = destination) {
-                val screenData = NavigationGraph.findScreenWithMetadata(destination)
-                if (screenData == null) {
-                    Logger.w("KmpNavigation") {
-                        "No screen registered for ${destination::class.simpleName}."
-                    }
-                    return@NavEntry
+        predictivePopTransitionSpec = predictivePopTransitionSpec ?: defaultPredictivePopTransitionSpec,
+        entryProvider = entryProvider {
+            entry<NavDestination> { destination ->
+                val screen = NavigationGraph.findScreenWithMetadata(destination)?.content
+
+                if (screen == null) {
+                    Logger.w("KmpNavigation") { "No screen registered for ${destination::class.simpleName}." }
+                    return@entry
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {
-                    screenData.content(destination)
+                    screen(destination)
                 }
             }
         }
