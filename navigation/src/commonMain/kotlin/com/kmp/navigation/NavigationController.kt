@@ -56,13 +56,17 @@ class NavigationController : Navigation {
 
         lastEvent = NavigationEvent.Idle
 
-        // Build the initial stack by resolving the start destination
+        // Pre-populate lastActivePerGroup with startDestinations
+        // so the guard in switchTab works correctly from the start
+        NavigationGraph.allTabsData().forEach { (groupClass, tabsData) ->
+            lastActivePerGroup[groupClass] = tabsData.startDestination
+        }
+
         val initialStack = resolveInitialStack(startDestination)
         backStack.addAll(initialStack)
 
         updateState()
     }
-
     /**
      * Resolves the initial stack for a start destination.
      *

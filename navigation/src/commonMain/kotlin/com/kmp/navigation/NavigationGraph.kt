@@ -70,4 +70,6 @@ object NavigationGraph {
      */
     fun typeOf(destination: NavDestination): NavDestinationType? =
         destinations[destination::class]?.type
+
+    internal fun allTabsData(): Map<KClass<out NavTabs>, NavTabsData> = tabGroups
 }
