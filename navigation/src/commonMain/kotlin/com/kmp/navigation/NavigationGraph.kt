@@ -7,7 +7,8 @@ import kotlin.reflect.KClass
 object NavigationGraph {
 
     private val screens =
-        mutableMapOf<KClass<out NavDestination>, NavScreenData>()
+        mutableMapOf<KClass<out NavDestination>, @Composable (NavDestination) -> Unit>()
+
     private val destinationSections =
         mutableMapOf<KClass<out NavDestination>, NavSection>()
     private val sectionRoots =
@@ -39,7 +40,7 @@ object NavigationGraph {
                         "${key.simpleName} already registered – skipping."
                     }
                 } else {
-                    screens[key] = screenData
+                    screens[key] = screenData.content
                 }
             },
             registerDestinationSection = { key, section ->
@@ -82,7 +83,7 @@ object NavigationGraph {
 
     internal fun findScreen(
         destination: NavDestination
-    ): (@Composable (NavDestination) -> Unit)? = screens[destination::class]?.content
+    ): (@Composable (NavDestination) -> Unit)? = screens[destination::class]
 
 
     fun sectionInstanceFor(
