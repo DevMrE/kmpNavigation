@@ -147,29 +147,19 @@ inline fun <reified T : NavTabs> NavigationTabs(
         transitionSpec = {
             val targetData = NavigationGraph.findScreen(targetState)
             val initialData = NavigationGraph.findScreen(initialState)
+            val enter = targetData?.enterTransition?.invoke()
+            val exit = initialData?.exitTransition?.invoke()
 
-            when (lastEvent) {
-                NavigationEvent.SwitchTab -> {
-                    val enter = targetData?.enterTransition?.invoke(this)
-                    val exit = initialData?.exitTransition?.invoke(this)
-                    if (enter != null && exit != null) enter togetherWith exit
-                    else DefaultNavAnimations.tabSwitchTransition
-                }
+            if (enter != null && exit != null) enter togetherWith exit
+            else when (lastEvent) {
+                NavigationEvent.SwitchTab ->
+                    DefaultNavAnimations.tabSwitchTransition
 
                 NavigationEvent.NavigateUp,
-                NavigationEvent.PopBackTo -> {
-                    val enter = targetData?.enterTransition?.invoke(this)
-                    val exit = initialData?.exitTransition?.invoke(this)
-                    if (enter != null && exit != null) enter togetherWith exit
-                    else DefaultNavAnimations.popEnterTransition
-                }
+                NavigationEvent.PopBackTo ->
+                    DefaultNavAnimations.popEnterTransition
 
-                else -> {
-                    val enter = targetData?.enterTransition?.invoke(this)
-                    val exit = initialData?.exitTransition?.invoke(this)
-                    if (enter != null && exit != null) enter togetherWith exit
-                    else DefaultNavAnimations.enterTransition
-                }
+                else -> DefaultNavAnimations.enterTransition
             }
         },
         label = "KmpNavigation<${T::class.simpleName}>"
@@ -228,24 +218,15 @@ inline fun <reified D : NavDestination> NavigationContent(
                 val targetData = targetState?.let { NavigationGraph.findScreen(it) }
                 val initialData = initialState?.let { NavigationGraph.findScreen(it) }
                 val event = controller.state.value.lastEvent
-                val enter = targetData?.enterTransition?.invoke(
-                    this as AnimatedContentTransitionScope<NavDestination>
-                )
+                val enter = targetData?.enterTransition?.invoke()
+                val exit = initialData?.exitTransition?.invoke()
 
-                val exit =
-                    initialData?.exitTransition?.invoke(this as AnimatedContentTransitionScope<NavDestination>)
-
-                when (event) {
+                if (enter != null && exit != null) enter togetherWith exit
+                else when (event) {
                     NavigationEvent.NavigateUp,
-                    NavigationEvent.PopBackTo -> {
-                        if (enter != null && exit != null) enter togetherWith exit
-                        else DefaultNavAnimations.popEnterTransition
-                    }
+                    NavigationEvent.PopBackTo -> DefaultNavAnimations.popEnterTransition
 
-                    else -> {
-                        if (enter != null && exit != null) enter togetherWith exit
-                        else DefaultNavAnimations.enterTransition
-                    }
+                    else -> DefaultNavAnimations.enterTransition
                 }
             },
             label = "KmpNavigation<${D::class.simpleName}>"

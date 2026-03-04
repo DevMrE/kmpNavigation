@@ -22,6 +22,6 @@ enum class NavDestinationType {
 data class NavScreenData(
     val content: @Composable (NavDestination) -> Unit,
     val type: NavDestinationType,
-    val enterTransition: (AnimatedContentTransitionScope<NavDestination>.() -> EnterTransition)? = null,
-    val exitTransition: (AnimatedContentTransitionScope<NavDestination>.() -> ExitTransition)? = null
+    val enterTransition: (() -> EnterTransition)? = null,
+    val exitTransition: (() -> ExitTransition)? = null
 )

@@ -78,8 +78,8 @@ class RegisterNavigationBuilder {
      * ```
      */
     inline fun <reified D : NavDestination> content(
-        noinline enterTransition: (AnimatedContentTransitionScope<NavDestination>.() -> EnterTransition)? = null,
-        noinline exitTransition: (AnimatedContentTransitionScope<NavDestination>.() -> ExitTransition)? = null,
+        noinline enterTransition: (() -> EnterTransition)? = null,
+        noinline exitTransition: (() -> ExitTransition)? = null,
         noinline composable: @Composable (D) -> Unit
     ) {
         registerDestination(D::class, NavDestinationType.Content, enterTransition, exitTransition, composable)
@@ -106,8 +106,8 @@ class RegisterNavigationBuilder {
      * ```
      */
     inline fun <reified D : NavDestination> screen(
-        noinline enterTransition: (AnimatedContentTransitionScope<NavDestination>.() -> EnterTransition)? = null,
-        noinline exitTransition: (AnimatedContentTransitionScope<NavDestination>.() -> ExitTransition)? = null,
+        noinline enterTransition: (() -> EnterTransition)? = null,
+        noinline exitTransition: (() -> ExitTransition)? = null,
         noinline composable: @Composable (D) -> Unit
     ) {
         registerDestination(D::class, NavDestinationType.Screen, enterTransition, exitTransition, composable)
@@ -182,8 +182,8 @@ class RegisterNavigationBuilder {
     internal fun <D : NavDestination> registerDestination(
         klass: KClass<D>,
         type: NavDestinationType,
-        enterTransition: (AnimatedContentTransitionScope<NavDestination>.() -> EnterTransition)?,
-        exitTransition: (AnimatedContentTransitionScope<NavDestination>.() -> ExitTransition)?,
+        enterTransition: (() -> EnterTransition)?,
+        exitTransition: (() -> ExitTransition)?,
         composable: @Composable (D) -> Unit
     ) {
         if (destinationsWithDat.containsKey(klass)) {
