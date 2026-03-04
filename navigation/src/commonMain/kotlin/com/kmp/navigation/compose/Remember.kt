@@ -103,7 +103,7 @@ fun rememberIsDestinationActive(destination: NavDestination): Boolean {
     val state by controller.state.collectAsState()
 
     return remember(state.backStack, state.lastEvent) {
-        val groupClass = NavigationGraph.groupOf(destination)
+        val groupClass = NavigationGraph.findTabs(destination)
         if (groupClass != null) {
             // Tab destination – check if it's the active one in its group
             controller.activeDestinationFor(groupClass)?.let {

@@ -50,20 +50,8 @@ object NavigationGraph {
     /**
      * Find the tabs group a destination belongs to, if any.
      */
-    internal fun groupOf(destination: NavDestination): KClass<out NavTabs>? =
+    fun findTabs(destination: NavDestination): KClass<out NavTabs>? =
         destinationToGroup[destination::class]
-
-    /**
-     * Find tabs data for a group.
-     */
-    internal fun tabsDataFor(groupClass: KClass<out NavTabs>): NavTabsData? =
-        tabGroups[groupClass]
-
-    /**
-     * Returns true if the destination belongs to a tabs group.
-     */
-    internal fun isTabDestination(destination: NavDestination): Boolean =
-        destinationToGroup.containsKey(destination::class)
 
     /**
      * Returns the start destination for a group.

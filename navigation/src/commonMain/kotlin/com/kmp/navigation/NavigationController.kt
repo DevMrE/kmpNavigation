@@ -5,6 +5,7 @@ import co.touchlab.kermit.Logger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlin.reflect.KClass
 
 /**
@@ -22,8 +23,8 @@ class NavigationController : Navigation {
 
     internal val backStack = mutableStateListOf<NavDestination>()
 
-    private val _state = MutableStateFlow(NavigationState())
-    val state: StateFlow<NavigationState> = _state.asStateFlow()
+    private val _navigationState = MutableStateFlow(NavigationState())
+    val state: StateFlow<NavigationState> = _navigationState.asStateFlow()
 
     // Last active destination per group – for tab state restoration
     // Key: group KClass, Value: last active destination in that group
@@ -34,11 +35,13 @@ class NavigationController : Navigation {
     private var lastEvent: NavigationEvent = NavigationEvent.Idle
 
     private fun updateState() {
-        _state.value = NavigationState(
-            backStack = backStack.toList(),
-            currentDestination = backStack.lastOrNull(),
-            lastEvent = lastEvent
-        )
+        _navigationState.update {
+            NavigationState(
+                backStack = backStack.toList(),
+                currentDestination = backStack.lastOrNull(),
+                lastEvent = lastEvent
+            )
+        }
         Logger.i("NavigationController") {
             "backStack: $backStack"
         }
@@ -70,7 +73,7 @@ class NavigationController : Navigation {
         val result = mutableListOf<NavDestination>()
 
         // Find which group the startDestination belongs to
-        val groupClass = NavigationGraph.groupOf(startDestination)
+        val groupClass = NavigationGraph.findTabs(startDestination)
 
         if (groupClass != null) {
             // startDestination is a tab – find parent tabs that reference this group
@@ -99,7 +102,7 @@ class NavigationController : Navigation {
      * We find this by checking which destination's screen contains NavigationContent<G>.
      * Since we can't inspect composables, we rely on explicit nesting hints.
      * For now, we look through all groups to find if any group's destinations
-     * are "parent" destinations that render sub-groups.
+     * are "parent" destinations that render subgroups.
      *
      * This is a best-effort lookup – returns null if no parent found.
      */
@@ -117,11 +120,11 @@ class NavigationController : Navigation {
     }
 
     override fun navigateTo(destination: NavDestination) {
-        val groupClass = NavigationGraph.groupOf(destination)
+        val tabs = NavigationGraph.findTabs(destination)
 
-        if (groupClass != null) {
+        if (tabs != null) {
             // Destination is a tab → switch tab, no BackStack entry
-            switchTab(destination, groupClass)
+            switchTab(destination, tabs)
         } else {
             // screen or content → add to BackStack
             pushToBackStack(destination)
@@ -219,7 +222,7 @@ class NavigationController : Navigation {
 
         // Also clear tab state
         lastActivePerGroup.clear()
-        val groupClass = NavigationGraph.groupOf(destination)
+        val groupClass = NavigationGraph.findTabs(destination)
         if (groupClass != null) {
             lastActivePerGroup[groupClass] = destination
         }
@@ -231,16 +234,8 @@ class NavigationController : Navigation {
      * Returns the currently active destination for a tabs group.
      * Falls back to the group's startDestination if never visited.
      */
-    fun activeDestinationFor(groupClass: KClass<out NavTabs>): NavDestination? {
-        return lastActivePerGroup[groupClass]
-            ?: NavigationGraph.startDestinationFor(groupClass)
-    }
-
-    /**
-     * Returns the current destination in the BackStack that belongs to
-     * the given group. Used by rememberCurrentTabInGroup.
-     */
-    internal fun currentDestinationInGroup(groupClass: KClass<out NavTabs>): NavDestination? {
+    @PublishedApi
+    internal fun activeDestinationFor(groupClass: KClass<out NavTabs>): NavDestination? {
         return lastActivePerGroup[groupClass]
             ?: NavigationGraph.startDestinationFor(groupClass)
     }
