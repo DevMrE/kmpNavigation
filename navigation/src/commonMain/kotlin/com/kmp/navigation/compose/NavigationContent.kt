@@ -1,7 +1,6 @@
 package com.kmp.navigation.compose
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -195,20 +194,19 @@ inline fun <reified D : NavDestination> NavigationContent(
     }
 
     val currentEvent = controller.state.value.lastEvent
+    val currentDestinationData = currentDestination?.let { NavigationGraph.findScreen(it) }
 
     AnimatedVisibility(
         modifier = modifier.clipToBounds(),
         visible = currentDestination != null,
-        enter = when (currentEvent) {
+        enter = currentDestinationData?.enterTransition?.invoke() ?: when (currentEvent) {
             NavigationEvent.NavigateUp,
             NavigationEvent.PopBackTo -> slideInHorizontally { -it } + fadeIn()
-
             else -> slideInHorizontally { it } + fadeIn()
         },
-        exit = when (currentEvent) {
+        exit = currentDestinationData?.exitTransition?.invoke() ?: when (currentEvent) {
             NavigationEvent.NavigateUp,
             NavigationEvent.PopBackTo -> slideOutHorizontally { it } + fadeOut()
-
             else -> slideOutHorizontally { -it } + fadeOut()
         }
     ) {

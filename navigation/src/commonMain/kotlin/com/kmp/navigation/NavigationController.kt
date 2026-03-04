@@ -42,9 +42,7 @@ class NavigationController : Navigation {
                 lastEvent = lastEvent
             )
         }
-        Logger.i("NavigationController") {
-            "backStack: $backStack"
-        }
+        Logger.i("KmpNavigation") { "backStack: $backStack" }
     }
 
     /**
@@ -142,9 +140,7 @@ class NavigationController : Navigation {
      */
     private fun switchTab(destination: NavDestination, tabsClass: KClass<out NavTabs>) {
         if (lastActivePerGroup[tabsClass]?.let { it::class == destination::class } == true) {
-            Logger.d("NavigationController") {
-                "switchTab: ${destination::class.simpleName} already active – skipping."
-            }
+            Logger.d("KmpNavigation") { "switchTab: ${destination::class.simpleName} already active – skipping." }
             return
         }
 
@@ -178,9 +174,7 @@ class NavigationController : Navigation {
     private fun pushToBackStack(destination: NavDestination) {
         // Avoid duplicate on top
         if (backStack.lastOrNull()?.let { it::class == destination::class } == true) {
-            Logger.d("NavigationController") {
-                "navigateTo: ${destination::class.simpleName} already on top – skipping."
-            }
+            Logger.d("KmpNavigation") { "navigateTo: ${destination::class.simpleName} already on top – skipping." }
             return
         }
 
@@ -191,7 +185,7 @@ class NavigationController : Navigation {
 
     override fun navigateUp() {
         if (backStack.size <= 1) {
-            Logger.d("NavigationController") { "navigateUp: nothing to pop." }
+            Logger.d("KmpNavigation") { "navigateUp: nothing to pop." }
             return
         }
 
@@ -203,9 +197,7 @@ class NavigationController : Navigation {
     override fun popBackTo(destination: NavDestination, inclusive: Boolean) {
         val idx = backStack.indexOfLast { it::class == destination::class }
         if (idx < 0) {
-            Logger.w("NavigationController") {
-                "popBackTo: ${destination::class.simpleName} not found in backStack."
-            }
+            Logger.w("KmpNavigation") { "popBackTo: ${destination::class.simpleName} not found in backStack." }
             return
         }
 
