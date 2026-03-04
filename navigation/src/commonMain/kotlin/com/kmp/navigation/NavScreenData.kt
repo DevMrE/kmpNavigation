@@ -1,16 +1,21 @@
 package com.kmp.navigation
 
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.ContentTransform
 import androidx.compose.runtime.Composable
-import androidx.navigation3.scene.Scene
 
 /**
- * Holds the composable content and optional per-destination transition metadata.
+ * Type of registration for a destination.
+ */
+enum class NavDestinationType {
+    /** Respects parent bounds, lands in BackStack */
+    Content,
+    /** Fullscreen – breaks out of parent bounds, lands in BackStack */
+    Screen
+}
+
+/**
+ * Holds the composable content and type for a registered destination.
  */
 data class NavScreenData(
     val content: @Composable (NavDestination) -> Unit,
-    val transitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
-    val popTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
-    val predictivePopTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) -> ContentTransform)? = null
+    val type: NavDestinationType
 )

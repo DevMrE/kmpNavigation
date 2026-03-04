@@ -1,169 +1,174 @@
 package com.kmp.navigation.compose
 
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
-import androidx.navigation3.scene.Scene
-import androidx.navigation3.ui.NavDisplay
+import androidx.compose.ui.draw.clipToBounds
 import co.touchlab.kermit.Logger
-import com.kmp.navigation.*
+import com.kmp.navigation.GlobalNavigation
+import com.kmp.navigation.NavDestinationType
+import com.kmp.navigation.NavGroup
+import com.kmp.navigation.NavigationEvent
+import com.kmp.navigation.NavigationGraph
 
 /**
- * Renders the active destination for section [S].
+ * Renders the currently active destination within a tabs group [NavGroup].
  *
- * @param isRoot If true, renders fullscreen with its own layout scope (for top-level sections
- *               like AppRootSection or DetailNavSection that have their own Scaffold).
- *               If false (default), respects parent layout constraints
- *               (e.g. weight(1f) inside a Column).
+ * - Respects parent bounds via [modifier]
+ * - Animates between destinations
+ * - For `screen` type destinations, renders fullscreen regardless of modifier
  *
  * ```kotlin
- * // Top-level sections – fullscreen
- * @Composable
- * fun AppScreen() {
- *     AppTheme {
- *         NavigationContent<AppRootSection>(isRoot = true)
- *         NavigationContent<DetailNavSection>(isRoot = true)
- *     }
- * }
+ * // In AppScreen:
+ * NavigationContent<AppRoot>(Modifier.padding(padding))
  *
- * // Child sections – respects parent constraints
- * @Composable
- * fun AppRootContent() {
- *     Scaffold(bottomBar = { BottomBar() }) { padding ->
- *         NavigationContent<AppRootSection>(
- *             modifier = Modifier.padding(padding)
- *         )
- *     }
- * }
- *
- * @Composable
- * fun HomeScreen() {
- *     Column(modifier = Modifier.fillMaxSize()) {
- *         Tabs()
- *         NavigationContent<HomeScreenSection>(modifier = Modifier.weight(1f))
- *     }
- * }
+ * // In HomeContent:
+ * NavigationContent<HomeTabs>(Modifier.weight(1f))
  * ```
  */
 @Composable
-inline fun <reified S : NavSection> NavigationContent(
+inline fun <reified NG : NavGroup> NavigationContent(
     modifier: Modifier = Modifier,
-    isRoot: Boolean = false,
-    noinline transitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
-    noinline popTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
-    noinline predictivePopTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) -> ContentTransform)? = null
-) {
-    val sectionInstance = remember {
-        NavigationGraph.sectionInstanceFor(S::class)
-    }
-
-    if (sectionInstance == null) {
-        Logger.w("KmpNavigation") {
-            "No section instance found for ${S::class.simpleName}."
-        }
-        return
-    }
-
-    RenderSection(
-        section = sectionInstance,
-        modifier = modifier,
-        isRoot = isRoot,
-        transitionSpec = transitionSpec,
-        popTransitionSpec = popTransitionSpec,
-        predictivePopTransitionSpec = predictivePopTransitionSpec
-    )
-}
-
-@Composable
-@PublishedApi
-internal fun RenderSection(
-    section: NavSection,
-    modifier: Modifier = Modifier,
-    isRoot: Boolean = false,
-    transitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
-    popTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
-    predictivePopTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) -> ContentTransform)? = null
+    noinline transitionSpec: (() -> ContentTransform)? = null
 ) {
     val controller = GlobalNavigation.controller
     val navState by controller.state.collectAsState()
-    val lastEvent = navState.lastEvent
+    val groupClass = NG::class
 
-    if (isRoot) {
-        val topLevelSection = navState.backStack
-            .mapNotNull { controller.sectionOf(it) }
-            .firstOrNull { NavigationGraph.parentSectionOf(it) == null }
-
-        if (topLevelSection != section) {
-            Logger.d("KmpNavigation") {
-                "renderSection(${section::class.simpleName}, isRoot=true): " +
-                        "not active top-level section (active: ${topLevelSection?.let { it::class.simpleName }}). Skipping."
-            }
-            return
-        }
-    }
-
-    val subStack = remember(section, navState.backStack) {
-        mutableStateListOf<NavDestination>().also {
-            it.addAll(controller.subStackFor(section))
-        }
-    }
-
-    Logger.i("KmpNavigation") {
-        "renderSection(${section::class.simpleName}, isRoot=$isRoot) subStack: $subStack"
-    }
-
-    if (subStack.isEmpty()) {
-        Logger.w("KmpNavigation") {
-            "renderSection(${section::class.simpleName}): subStack is empty – nothing to render."
+    // Get active destination for this group
+    val activeDestination = remember(navState.backStack, navState.lastEvent) {
+        controller.activeDestinationFor(groupClass)
+    } ?: run {
+        Logger.w("NavigationContent") {
+            "NavigationContent<${NG::class.simpleName}>: no active destination found."
         }
         return
     }
 
-    val defaultTransitionSpec: AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform = {
+    val screenData = NavigationGraph.findScreen(activeDestination) ?: run {
+        Logger.w("NavigationContent") {
+            "NavigationContent<${NG::class.simpleName}>: " +
+                    "no screen registered for ${activeDestination::class.simpleName}."
+        }
+        return
+    }
+
+    val lastEvent = navState.lastEvent
+
+    val defaultTransitionSpec: () -> ContentTransform = {
         when (lastEvent) {
-            NavigationEvent.SwitchTo -> fadeIn() togetherWith fadeOut()
+            NavigationEvent.SwitchTab -> fadeIn() togetherWith fadeOut()
+            NavigationEvent.NavigateUp,
+            NavigationEvent.PopBackTo -> slideInHorizontally { -it } + fadeIn() togetherWith
+                    slideOutHorizontally { it } + fadeOut()
             else -> slideInHorizontally { it } + fadeIn() togetherWith
                     slideOutHorizontally { -it } + fadeOut()
         }
     }
 
-    val defaultPopTransitionSpec: AnimatedContentTransitionScope<Scene<NavDestination>>.() ->
-    ContentTransform = {
-        slideInHorizontally { -it } + fadeIn() togetherWith slideOutHorizontally { it } + fadeOut()
+    // For screen type: render fullscreen, ignore modifier bounds
+    // For content type: respect modifier bounds
+    val isFullscreen = screenData.type == NavDestinationType.Screen
+
+    val contentModifier = if (isFullscreen) {
+        Modifier.fillMaxSize().clipToBounds()
+    } else {
+        modifier.clipToBounds()
     }
 
-    val defaultPredictivePopTransitionSpec: AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) ->
-    ContentTransform = {
-        slideInHorizontally { -it } + fadeIn() togetherWith slideOutHorizontally { it } + fadeOut()
+    AnimatedContent(
+        modifier = contentModifier,
+        targetState = activeDestination,
+        transitionSpec = { transitionSpec?.invoke() ?: defaultTransitionSpec() },
+        label = "NavigationContent<${NG::class.simpleName}>"
+    ) { destination ->
+        val data = NavigationGraph.findScreen(destination)
+        if (data == null) {
+            Logger.w("NavigationContent") {
+                "No screen for ${destination::class.simpleName}"
+            }
+            return@AnimatedContent
+        }
+        data.content(destination)
     }
+}
 
-    NavDisplay(
-        modifier = modifier,
-        backStack = subStack,
-        onBack = { GlobalNavigation.navigation.navigateUp() },
-        entryDecorators = listOf(
-            rememberSaveableStateHolderNavEntryDecorator()
-        ),
-        transitionSpec = transitionSpec ?: defaultTransitionSpec,
-        popTransitionSpec = popTransitionSpec ?: defaultPopTransitionSpec,
-        predictivePopTransitionSpec = predictivePopTransitionSpec ?: defaultPredictivePopTransitionSpec,
-        entryProvider = entryProvider {
-            entry<NavDestination> { destination ->
-                val screen = NavigationGraph.findScreenWithMetadata(destination)?.content
+/**
+ * Renders the current top of the BackStack.
+ *
+ * Use this to render screen destinations that are pushed on top of the
+ * normal tab navigation (e.g. DetailScreen, PopularMovieScreen).
+ *
+ * Place this ONCE at the very top of your app, wrapping your root content.
+ *
+ * ```kotlin
+ * @Composable
+ * fun AppScreen() {
+ *     AppTheme {
+ *         // Renders DetailScreen on top when navigated to
+ *         ScreenNavigationHost {
+ *             // Normal tab content below
+ *             AppRootContent { padding ->
+ *                 NavigationContent<AppRoot>(Modifier.padding(padding))
+ *             }
+ *         }
+ *     }
+ * }
+ * ```
+ */
+@Composable
+fun ScreenNavigationHost(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val controller = GlobalNavigation.controller
+    val navState by controller.state.collectAsState()
 
-                if (screen == null) {
-                    Logger.w("KmpNavigation") { "No screen registered for ${destination::class.simpleName}." }
-                    return@entry
-                }
+    val topDestination = navState.backStack.lastOrNull()
+    val isScreenOnTop = topDestination?.let {
+        NavigationGraph.typeOf(it) == NavDestinationType.Screen
+    } ?: false
 
-                Box(modifier = Modifier.fillMaxSize()) {
-                    screen(destination)
+    Box(modifier = modifier.fillMaxSize()) {
+        // Always render the base content below
+        content()
+
+        // If a screen destination is on top, render it over everything
+        if (isScreenOnTop) {
+            val screenData = NavigationGraph.findScreen(topDestination)
+            if (screenData != null) {
+                AnimatedContent(
+                    modifier = Modifier.fillMaxSize().clipToBounds(),
+                    targetState = topDestination,
+                    transitionSpec = {
+                        val lastEvent = navState.lastEvent
+                        when (lastEvent) {
+                            NavigationEvent.NavigateUp,
+                            NavigationEvent.PopBackTo -> slideInHorizontally { -it } + fadeIn() togetherWith
+                                    slideOutHorizontally { it } + fadeOut()
+                            else -> slideInHorizontally { it } + fadeIn() togetherWith
+                                    slideOutHorizontally { -it } + fadeOut()
+                        }
+                    },
+                    label = "ScreenNavigationHost"
+                ) { destination ->
+                    val data = NavigationGraph.findScreen(destination)
+                    if (data != null) {
+                        data.content(destination)
+                    }
                 }
             }
         }
-    )
+    }
 }

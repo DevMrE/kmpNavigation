@@ -3,108 +3,83 @@ package com.kmp.navigation
 import co.touchlab.kermit.Logger
 import kotlin.reflect.KClass
 
+/**
+ * Global registry mapping destinations to their content and groups.
+ */
 object NavigationGraph {
 
-    private val screens =
+    // screens and contents: destination KClass → NavScreenData
+    private val destinations =
         mutableMapOf<KClass<out NavDestination>, NavScreenData>()
-    private val destinationSections =
-        mutableMapOf<KClass<out NavDestination>, NavSection>()
-    private val sectionRoots =
-        mutableMapOf<NavSection, NavDestination>()
-    private val sectionDefaults =
-        mutableMapOf<NavSection, NavDestination>()
-    private val sectionIndices =
-        mutableMapOf<NavSection, Int>()
-    private val sectionParents =
-        mutableMapOf<NavSection, NavSection>()
 
-    fun configureNavigationGraph(
-        startDestination: NavDestination,
-        builder: RegisterNavigationBuilder.() -> Unit
+    // tabs groups: group KClass → NavTabsData
+    private val tabGroups =
+        mutableMapOf<KClass<out NavGroup>, NavTabsData>()
+
+    // reverse lookup: destination KClass → group KClass it belongs to
+    private val destinationToGroup =
+        mutableMapOf<KClass<out NavDestination>, KClass<out NavGroup>>()
+
+    private var configured = false
+
+    internal fun configure(
+        destinationMap: Map<KClass<out NavDestination>, NavScreenData>,
+        tabGroupMap: Map<KClass<out NavGroup>, NavTabsData>,
+        destToGroup: Map<KClass<out NavDestination>, KClass<out NavGroup>>
     ) {
-        screens.clear()
-        destinationSections.clear()
-        sectionRoots.clear()
-        sectionDefaults.clear()
-        sectionIndices.clear()
-        sectionParents.clear()
+        destinations.clear()
+        tabGroups.clear()
+        destinationToGroup.clear()
 
-        var nextIndex = 0
+        destinations.putAll(destinationMap)
+        tabGroups.putAll(tabGroupMap)
+        destinationToGroup.putAll(destToGroup)
 
-        val dsl = RegisterNavigationBuilder(
-            registerScreen = { key, screenData ->
-                if (screens.containsKey(key)) {
-                    Logger.w("NavigationGraph") {
-                        "${key.simpleName} already registered – skipping."
-                    }
-                } else {
-                    screens[key] = screenData
-                }
-            },
-            registerDestinationSection = { key, section ->
-                destinationSections[key] = section
-            },
-            registerSectionRoot = { section, root, default, parent ->
-                sectionRoots[section] = root
-                if (default != null) sectionDefaults[section] = default
-                if (!sectionIndices.containsKey(section)) {
-                    sectionIndices[section] = nextIndex++
-                }
-                if (parent != null) sectionParents[section] = parent
-            }
-        )
-
-        dsl.builder()
-
+        configured = true
         Logger.i("NavigationGraph") {
-            "Configured sections: ${sectionRoots.keys.map { it::class.simpleName }}"
-        }
-        Logger.i("NavigationGraph") {
-            "Section defaults: ${sectionDefaults.map { "${it.key::class.simpleName} → ${it.value::class.simpleName}" }}"
-        }
-        Logger.i("NavigationGraph") {
-            "Section parents: ${sectionParents.map { "${it.key::class.simpleName} → ${it.value::class.simpleName}" }}"
-        }
-
-        GlobalNavigation.controller.configureSections(
-            destinationToSection = destinationSections.toMap(),
-            sectionRoots = sectionRoots.toMap(),
-            sectionDefaults = sectionDefaults.toMap(),
-            parentSections = sectionParents.toMap(),
-            sectionIndices = sectionIndices.toMap()
-        )
-
-        if (GlobalNavigation.controller.backStack.isEmpty()) {
-            GlobalNavigation.controller.buildInitialStack(startDestination)
+            "Configured with ${destinations.size} destinations, ${tabGroups.size} tab groups."
         }
     }
 
-    internal fun findScreenWithMetadata(
-        destination: NavDestination
-    ): NavScreenData? = screens[destination::class]
+    /**
+     * Find screen data for a destination.
+     */
+    fun findScreen(destination: NavDestination): NavScreenData? =
+        destinations[destination::class]
 
-    fun sectionInstanceFor(
-        sectionClass: KClass<out NavSection>
-    ): NavSection? =
-        sectionRoots.keys.firstOrNull { it::class == sectionClass }
+    /**
+     * Find the tabs group a destination belongs to, if any.
+     */
+    internal fun groupOf(destination: NavDestination): KClass<out NavGroup>? =
+        destinationToGroup[destination::class]
 
-    internal fun parentSectionOf(section: NavSection): NavSection? =
-        sectionParents[section]
+    /**
+     * Find tabs data for a group.
+     */
+    internal fun tabsDataFor(groupClass: KClass<out NavGroup>): NavTabsData? =
+        tabGroups[groupClass]
 
-    fun destinationBelongsToSectionScope(
-        destination: NavDestination,
-        sectionClass: KClass<out NavSection>
-    ): Boolean {
-        val destSection = destinationSections[destination::class] ?: return false
-        return isSectionOrDescendant(destSection, sectionClass)
-    }
+    /**
+     * Returns true if the destination belongs to a tabs group.
+     */
+    internal fun isTabDestination(destination: NavDestination): Boolean =
+        destinationToGroup.containsKey(destination::class)
 
-    private fun isSectionOrDescendant(
-        candidate: NavSection,
-        scopeClass: KClass<out NavSection>
-    ): Boolean {
-        if (candidate::class == scopeClass) return true
-        val parent = sectionParents[candidate] ?: return false
-        return isSectionOrDescendant(parent, scopeClass)
-    }
+    /**
+     * Returns the start destination for a group.
+     */
+    internal fun startDestinationFor(groupClass: KClass<out NavGroup>): NavDestination? =
+        tabGroups[groupClass]?.startDestination
+
+    /**
+     * Returns all destinations belonging to a group.
+     */
+    fun destinationsFor(groupClass: KClass<out NavGroup>): List<NavDestination> =
+        tabGroups[groupClass]?.destinations ?: emptyList()
+
+    /**
+     * Returns the type of destination.
+     */
+    internal fun typeOf(destination: NavDestination): NavDestinationType? =
+        destinations[destination::class]?.type
 }

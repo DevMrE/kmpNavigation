@@ -6,7 +6,5 @@ package com.kmp.navigation
 data class NavigationState(
     val backStack: List<NavDestination> = emptyList(),
     val currentDestination: NavDestination? = null,
-    val currentSection: NavSection? = null,
-    val lastEvent: NavigationEvent = NavigationEvent.Idle,
-    val lastTransition: NavTransitionSpec = NavTransitions.fade
+    val lastEvent: NavigationEvent = NavigationEvent.Idle
 )

@@ -1,87 +1,156 @@
 package com.kmp.navigation
 
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.ContentTransform
 import androidx.compose.runtime.Composable
-import androidx.navigation3.scene.Scene
 import co.touchlab.kermit.Logger
 import kotlin.reflect.KClass
 
+/**
+ * DSL builder for registering destinations and tab groups.
+ *
+ * ```kotlin
+ * registerNavigation(startDestination = HomeContentDestination) {
+ *
+ *     content<HomeContentDestination> { HomeContent() }
+ *     content<SettingsContentDestination> { SettingsContent() }
+ *     content<MovieContentDestination> { MovieContent() }
+ *     content<SeriesContentDestination> { SeriesContent() }
+ *
+ *     screen<DetailScreenDestination> { dest -> DetailScreen(dest.id) }
+ *
+ *     tabs<HomeTabs>(
+ *         startDestination = MovieContentDestination,
+ *         MovieContentDestination, SeriesContentDestination
+ *     )
+ *     tabs<AppRoot>(
+ *         startDestination = HomeContentDestination,
+ *         HomeContentDestination, SettingsContentDestination
+ *     )
+ * }
+ * ```
+ */
 @NavigationDsl
-class RegisterNavigationBuilder @PublishedApi internal constructor(
-    @PublishedApi internal val registerScreen: (KClass<out NavDestination>, NavScreenData) -> Unit,
-    @PublishedApi internal val registerDestinationSection: (KClass<out NavDestination>, NavSection) -> Unit,
-    @PublishedApi internal val registerSectionRoot: (NavSection, NavDestination, NavDestination?, NavSection?) -> Unit,
-    @PublishedApi internal val currentSection: NavSection? = null
-) {
+class RegisterNavigationBuilder {
+
+    internal val destinationMap =
+        mutableMapOf<KClass<out NavDestination>, NavScreenData>()
+
+     val tabGroupMap =
+        mutableMapOf<KClass<out NavGroup>, NavTabsData>()
+
+    val destToGroup =
+        mutableMapOf<KClass<out NavDestination>, KClass<out NavGroup>>()
 
     /**
-     * Declares a section with an optional default destination.
+     * Register a content destination.
+     * Respects parent bounds, lands in BackStack.
      *
      * ```kotlin
-     * section(HomeScreenSection, HomeScreenDestination, default = MovieScreenDestination) {
-     *     screen<HomeScreenDestination> { HomeScreen() }
-     *     screen<MovieScreenDestination> { MovieScreen() }
-     *     screen<SeriesScreenDestination> { SeriesScreen() }
-     * }
+     * content<HomeContentDestination> { HomeContent() }
+     * content<MovieContentDestination> { MovieContent() }
      * ```
      */
-    inline fun <reified S : NavSection> section(
-        section: S,
-        root: NavDestination,
-        default: NavDestination? = null,
-        noinline builder: RegisterNavigationBuilder.() -> Unit
+    inline fun <reified D : NavDestination> content(
+        noinline composable: @Composable (D) -> Unit
     ) {
-        registerSectionRoot(section, root, default, currentSection)
-        RegisterNavigationBuilder(
-            registerScreen = registerScreen,
-            registerDestinationSection = registerDestinationSection,
-            registerSectionRoot = registerSectionRoot,
-            currentSection = section
-        ).builder()
+        registerDestination(D::class, NavDestinationType.Content, composable)
     }
 
     /**
-     * Registers a screen with optional per-destination animations.
+     * Register a screen destination.
+     * Fullscreen – breaks out of parent bounds, lands in BackStack.
      *
      * ```kotlin
-     * screen<MovieScreenDestination> { MovieScreen() }
-     *
-     * screen<DetailNavDestination>(
-     *     transitionSpec = {
-     *         slideInVertically { it } + fadeIn() togetherWith
-     *         slideOutVertically { -it } + fadeOut()
-     *     }
-     * ) { dest -> DetailScreen(dest.id) }
+     * screen<DetailScreenDestination> { dest -> DetailScreen(dest.id) }
      * ```
      */
     inline fun <reified D : NavDestination> screen(
-        noinline transitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
-        noinline popTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.() -> ContentTransform)? = null,
-        noinline predictivePopTransitionSpec: (AnimatedContentTransitionScope<Scene<NavDestination>>.(Int) -> ContentTransform)? = null,
-        noinline content: @Composable (D) -> Unit
+        noinline composable: @Composable (D) -> Unit
     ) {
-        val section = currentSection
-        if (section == null) {
+        registerDestination(D::class, NavDestinationType.Screen, composable)
+    }
+
+    /**
+     * Register a tabs group.
+     * Switching between tabs does NOT add to the BackStack.
+     * The last active destination per group is remembered.
+     *
+     * ```kotlin
+     * tabs<HomeTabs>(
+     *     startDestination = MovieContentDestination,
+     *     MovieContentDestination, SeriesContentDestination
+     * )
+     * ```
+     */
+    inline fun <reified G : NavGroup> tabs(
+        startDestination: NavDestination,
+        vararg destinations: NavDestination
+    ) {
+        val groupClass = G::class
+        val destList = destinations.toList()
+
+        if (destList.isEmpty()) {
             Logger.w("RegisterNavigationBuilder") {
-                "screen<${D::class.simpleName}> called outside a section block – skipping."
+                "tabs<${groupClass.simpleName}>: no destinations provided – skipping."
             }
             return
         }
-        registerDestinationSection(D::class, section)
-        registerScreen(
-            D::class,
-            NavScreenData(
-                content = { dest ->
-                    if (dest is D) content(dest)
-                    else Logger.w("RegisterNavigationBuilder") {
-                        "Type mismatch for ${D::class.simpleName} – skipping render."
-                    }
-                },
-                transitionSpec = transitionSpec,
-                popTransitionSpec = popTransitionSpec,
-                predictivePopTransitionSpec = predictivePopTransitionSpec
-            )
+
+        if (!destList.any { it::class == startDestination::class }) {
+            Logger.w("RegisterNavigationBuilder") {
+                "tabs<${groupClass.simpleName}>: startDestination ${startDestination::class.simpleName} " +
+                        "is not in destinations list – using first destination as fallback."
+            }
+        }
+
+        val resolvedStart = destList.firstOrNull { it::class == startDestination::class }
+            ?: destList.first()
+
+        tabGroupMap[groupClass] = NavTabsData(
+            groupClass = groupClass,
+            startDestination = resolvedStart,
+            destinations = destList
         )
+
+        // Register reverse lookup
+        destList.forEach { dest ->
+            destToGroup[dest::class] = groupClass
+        }
+
+        Logger.i("RegisterNavigationBuilder") {
+            "tabs<${groupClass.simpleName}> registered with ${destList.size} destinations, " +
+                    "start: ${resolvedStart::class.simpleName}"
+        }
+    }
+
+    @PublishedApi
+    internal fun <D : NavDestination> registerDestination(
+        klass: KClass<D>,
+        type: NavDestinationType,
+        composable: @Composable (D) -> Unit
+    ) {
+        if (destinationMap.containsKey(klass)) {
+            Logger.w("RegisterNavigationBuilder") {
+                "${klass.simpleName} already registered – skipping."
+            }
+            return
+        }
+
+        destinationMap[klass] = NavScreenData(
+            content = { dest ->
+                @Suppress("UNCHECKED_CAST")
+                if (klass.isInstance(dest)) {
+                    composable(dest as D)
+                } else {
+                    Logger.w("RegisterNavigationBuilder") {
+                        "Type mismatch for ${klass.simpleName} – skipping render."
+                    }
+                }
+            },
+            type = type
+        )
+
+        Logger.i("RegisterNavigationBuilder") {
+            "${type.name} <${klass.simpleName}> registered."
+        }
     }
 }

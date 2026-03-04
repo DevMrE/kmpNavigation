@@ -7,379 +7,235 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlin.reflect.KClass
 
+/**
+ * Core navigation implementation.
+ *
+ * BackStack rules:
+ * - `tabs` destinations → never added to BackStack, last active per group is remembered
+ * - `screen` / `content` destinations → added to BackStack normally
+ *
+ * Tab state restoration:
+ * - Switching AppRoot tabs restores the last active destination of that tab
+ * - Example: HomeTabs had SeriesContent active → switch to Settings → switch back → SeriesContent restored
+ */
 class NavigationController : Navigation {
 
-    val backStack = mutableStateListOf<NavDestination>()
+    internal val backStack = mutableStateListOf<NavDestination>()
 
     private val _state = MutableStateFlow(NavigationState())
     val state: StateFlow<NavigationState> = _state.asStateFlow()
 
-    private var destinationSections: Map<KClass<out NavDestination>, NavSection> = emptyMap()
-    private var sectionRoots: Map<NavSection, NavDestination> = emptyMap()
-    private var sectionDefaults: Map<NavSection, NavDestination> = emptyMap()
-    internal var parentSections: Map<NavSection, NavSection> = emptyMap()
-        private set
-    private var sectionIndices: Map<NavSection, Int> = emptyMap()
+    // Last active destination per group – for tab state restoration
+    // Key: group KClass, Value: last active destination in that group
+    private val lastActivePerGroup = mutableMapOf<KClass<out NavGroup>, NavDestination>()
 
-    private val lastTabPerSection = mutableMapOf<NavSection, NavDestination>()
-
+    // Last active destination per tabs-destination that is itself in a parent group
+    // This handles nested tabs correctly
     private var lastEvent: NavigationEvent = NavigationEvent.Idle
-    private var lastTransition: NavTransitionSpec = NavTransitions.fade
 
-    internal fun configureSections(
-        destinationToSection: Map<KClass<out NavDestination>, NavSection>,
-        sectionRoots: Map<NavSection, NavDestination>,
-        sectionDefaults: Map<NavSection, NavDestination>,
-        parentSections: Map<NavSection, NavSection>,
-        sectionIndices: Map<NavSection, Int>
-    ) {
-        this.destinationSections = destinationToSection
-        this.sectionRoots = sectionRoots
-        this.sectionDefaults = sectionDefaults
-        this.parentSections = parentSections
-        this.sectionIndices = sectionIndices
+    private fun updateState() {
+        _state.value = NavigationState(
+            backStack = backStack.toList(),
+            currentDestination = backStack.lastOrNull(),
+            lastEvent = lastEvent
+        )
+        Logger.i("NavigationController") {
+            "backStack: $backStack"
+        }
     }
 
-    internal fun sectionOf(destination: NavDestination): NavSection? =
-        destinationSections[destination::class]
-
-    internal fun parentSectionOf(section: NavSection): NavSection? =
-        parentSections[section]
-
-    private fun isShellRoot(destination: NavDestination): Boolean =
-        sectionRoots.values.any { it::class == destination::class }
-
     /**
-     * Builds the initial back stack.
-     *
-     * startDestination = AppRootDestination:
-     * → AppRootDestination
-     * AppRootSection SubStack → [] → triggers default → [HomeScreenDestination, MovieScreenDestination]
+     * Initialize the BackStack with the start destination.
+     * Handles tab groups correctly by resolving the start destination chain.
      */
-    internal fun buildInitialStack(startDestination: NavDestination) {
-        backStack.clear()
+    internal fun initialize(startDestination: NavDestination) {
+        if (backStack.isNotEmpty()) return
 
-        val startSection = sectionOf(startDestination) ?: run {
-            backStack.add(startDestination)
-            updateState()
-            return
-        }
+        lastEvent = NavigationEvent.Idle
 
-        // Build full ancestor chain
-        val sectionChain = mutableListOf<NavSection>()
-        var current: NavSection? = startSection
-        while (current != null) {
-            sectionChain.add(0, current)
-            current = parentSections[current]
-        }
-
-        // Push shell roots for all ancestors
-        sectionChain.dropLast(1).forEach { ancestorSection ->
-            sectionRoots[ancestorSection]?.let { backStack.add(it) }
-        }
-
-        // Push startDestination
-        backStack.add(startDestination)
-
-        // If startDestination is a shell root, push the default of that section
-        if (isShellRoot(startDestination)) {
-            pushSectionDefault(startSection)
-        } else {
-            lastTabPerSection[startSection] = startDestination
-        }
-
-        Logger.i("NavigationController") {
-            "buildInitialStack → backStack: $backStack"
-        }
+        // Build the initial stack by resolving the start destination
+        val initialStack = resolveInitialStack(startDestination)
+        backStack.addAll(initialStack)
 
         updateState()
     }
 
     /**
-     * Pushes the default destination of a section onto the stack.
-     * If no default is set, pushes the shell root of the first child section.
-     */
-    private fun pushSectionDefault(section: NavSection) {
-        val default = sectionDefaults[section] ?: return
-        backStack.add(default)
-
-        val defaultSection = sectionOf(default)
-        if (defaultSection != null && defaultSection != section) {
-            // Default belongs to a child section – push its default too if needed
-            if (isShellRoot(default)) {
-                pushSectionDefault(defaultSection)
-            } else {
-                lastTabPerSection[defaultSection] = default
-            }
-        } else if (defaultSection == section && isShellRoot(default)) {
-            pushSectionDefault(section)
-        } else if (defaultSection != null) {
-            lastTabPerSection[defaultSection] = default
-        }
-    }
-
-    /**
-     * Returns the substack for rendering in NavigationContent<S>.
+     * Resolves the initial stack for a start destination.
      *
-     * Example:
-     * Stack: [AppRootDestination, HomeScreenDestination, MovieScreenDestination]
-     * subStackFor(AppRootSection)    → HomeScreenDestination
-     * subStackFor(HomeScreenSection) → MovieScreenDestination
+     * If startDestination is in a tabs group that is itself referenced by
+     * a parent tabs group, we need to build the full chain.
      */
-    internal fun subStackFor(section: NavSection): List<NavDestination> {
-        val root = sectionRoots[section] ?: return emptyList()
-
-        val shellRootIndex = backStack.indexOfFirst { it::class == root::class }
-        if (shellRootIndex < 0) {
-            Logger.w("NavigationController") {
-                "subStackFor(${section::class.simpleName}): shell root not found in backStack."
-            }
-            return emptyList()
-        }
-
+    private fun resolveInitialStack(startDestination: NavDestination): List<NavDestination> {
         val result = mutableListOf<NavDestination>()
 
-        for (i in shellRootIndex + 1 until backStack.size) {
-            val dest = backStack[i]
-            val destSection = sectionOf(dest) ?: continue
+        // Find which group the startDestination belongs to
+        val groupClass = NavigationGraph.groupOf(startDestination)
 
-            // Include if destination's section is a direct child of this section
-            // OR destination belongs directly to this section
-            val destSectionParent = parentSections[destSection]
-
-            if (destSection == section || destSectionParent == section) {
-                result.add(dest)
-                // Only add the FIRST destination per child section
-                // The child NavigationContent handles the rest
-                if (destSectionParent == section) break
-            } else {
-                break
+        if (groupClass != null) {
+            // startDestination is a tab – find parent tabs that reference this group
+            // Build stack: [parentTabDest, ..., startDestination]
+            val parentDest = findParentTabDestinationFor(groupClass)
+            if (parentDest != null) {
+                result.addAll(resolveInitialStack(parentDest))
             }
+            // Remember this as the active destination for the group
+            lastActivePerGroup[groupClass] = startDestination
         }
 
-        Logger.d("NavigationController") {
-            "subStackFor(${section::class.simpleName}) → $result"
-        }
-
+        result.add(startDestination)
         return result
     }
 
-    private fun updateState() {
-        val current = backStack.lastOrNull()
-        _state.value = NavigationState(
-            backStack = backStack.toList(),
-            currentDestination = current,
-            currentSection = current?.let { sectionOf(it) },
-            lastEvent = lastEvent,
-            lastTransition = lastTransition
-        )
+    /**
+     * Finds the destination in a parent group that "contains" this group.
+     * Used to build the initial stack correctly.
+     *
+     * Example: HomeTabs contains MovieContentDestination.
+     * AppRoot contains HomeContentDestination.
+     * HomeContent renders NavigationContent<HomeTabs>.
+     * → parent of HomeTabs is AppRoot, via HomeContentDestination.
+     *
+     * We find this by checking which destination's screen contains NavigationContent<G>.
+     * Since we can't inspect composables, we rely on explicit nesting hints.
+     * For now, we look through all groups to find if any group's destinations
+     * are "parent" destinations that render sub-groups.
+     *
+     * This is a best-effort lookup – returns null if no parent found.
+     */
+    private fun findParentTabDestinationFor(groupClass: KClass<out NavGroup>): NavDestination? {
+        // We rely on the registered group nesting info set during registration
+        return groupParents[groupClass]
     }
 
-    override fun <D : NavDestination> navigateTo(
-        destination: D,
-        options: NavOptions.() -> Unit
-    ) {
-        val navOptions = NavOptions().apply(options)
-        if (navOptions.singleTop && backStack.lastOrNull()
-                ?.let { it::class == destination::class } == true
-        ) return
+    // Group parent destination lookup: group KClass → parent destination that renders it
+    // Set during registerNavigation via groupNesting
+    private val groupParents = mutableMapOf<KClass<out NavGroup>, NavDestination>()
 
-        lastEvent = NavigationEvent.NavigateTo
-        lastTransition = navOptions.transition ?: NavTransitions.fade
+    internal fun setGroupParents(parents: Map<KClass<out NavGroup>, NavDestination>) {
+        groupParents.putAll(parents)
+    }
 
-        backStack.add(destination)
-        if (!isShellRoot(destination)) {
-            sectionOf(destination)?.let { lastTabPerSection[it] = destination }
+    override fun navigateTo(destination: NavDestination) {
+        val groupClass = NavigationGraph.groupOf(destination)
+
+        if (groupClass != null) {
+            // Destination is a tab → switch tab, no BackStack entry
+            switchTab(destination, groupClass)
+        } else {
+            // screen or content → add to BackStack
+            pushToBackStack(destination)
+        }
+    }
+
+    /**
+     * Switches to a tab destination within its group.
+     * Does NOT add to BackStack.
+     * Remembers the last active destination per group.
+     */
+    private fun switchTab(destination: NavDestination, groupClass: KClass<out NavGroup>) {
+        lastEvent = NavigationEvent.SwitchTab
+
+        // Find the parent destination for this group in the current stack
+        val parentDest = groupParents[groupClass]
+
+        if (parentDest != null) {
+            // Find where the parent destination is in the backStack
+            val parentIndex = backStack.indexOfLast { it::class == parentDest::class }
+
+            if (parentIndex >= 0) {
+                // Remove everything after the parent destination
+                // (screen destinations that were pushed on top)
+                val removeFrom = parentIndex + 1
+                repeat(backStack.size - removeFrom) {
+                    if (backStack.size > removeFrom) backStack.removeAt(removeFrom)
+                }
+            }
         }
 
-        Logger.i("NavigationController") {
-            "navigateTo(${destination::class.simpleName}) → backStack: $backStack"
-        }
+        // Remember the active destination for this group
+        lastActivePerGroup[groupClass] = destination
 
         updateState()
     }
 
-    override fun switchTo(section: NavSection, transition: NavTransitionSpec?) {
-        val shellChain = buildShellChain(section)
-        if (shellChain.isEmpty()) {
-            Logger.w("NavigationController") { "switchTo($section): empty shell chain." }
+    /**
+     * Pushes a screen or content destination onto the BackStack.
+     */
+    private fun pushToBackStack(destination: NavDestination) {
+        // Avoid duplicate on top
+        if (backStack.lastOrNull()?.let { it::class == destination::class } == true) {
+            Logger.d("NavigationController") {
+                "navigateTo: ${destination::class.simpleName} already on top – skipping."
+            }
             return
         }
 
-        lastEvent = NavigationEvent.SwitchTo
-        lastTransition = transition ?: defaultSwitchTransition(
-            fromSection = backStack.lastOrNull()?.let { sectionOf(it) },
-            toSection = section
-        )
-
-        backStack.clear()
-        backStack.addAll(shellChain)
-
-        shellChain.forEach { dest ->
-            if (!isShellRoot(dest)) {
-                sectionOf(dest)?.let { lastTabPerSection[it] = dest }
-            }
-        }
-
-        Logger.i("NavigationController") {
-            "switchTo(section=${section::class.simpleName}) → backStack: $backStack"
-        }
-
-        updateState()
-    }
-
-    override fun <D : NavDestination> switchTo(destination: D, transition: NavTransitionSpec?) {
-        val section = sectionOf(destination)
-
-        lastEvent = NavigationEvent.SwitchTo
-        lastTransition = transition ?: NavTransitions.fade
-
-        val shellRootIndex = if (section != null) {
-            backStack.indexOfFirst { dest ->
-                sectionRoots[section]?.let { it::class == dest::class } == true
-            }
-        } else -1
-
-        if (shellRootIndex >= 0) {
-            val removeFrom = shellRootIndex + 1
-            repeat(backStack.size - removeFrom) {
-                if (backStack.size > removeFrom) backStack.removeAt(removeFrom)
-            }
-            backStack.add(destination)
-        } else {
-            backStack.clear()
-            backStack.add(destination)
-        }
-
-        section?.let { lastTabPerSection[it] = destination }
-
-        Logger.i("NavigationController") {
-            "switchTo(destination=${destination::class.simpleName}) → backStack: $backStack"
-        }
-
+        lastEvent = NavigationEvent.NavigateTo
+        backStack.add(destination)
         updateState()
     }
 
     override fun navigateUp() {
-        if (backStack.size <= 1) return
-        lastEvent = NavigationEvent.NavigateUp
-        lastTransition = NavTransitions.fade
-        backStack.removeLastOrNull()
-
-        Logger.i("NavigationController") {
-            "navigateUp() → backStack: $backStack"
+        if (backStack.size <= 1) {
+            Logger.d("NavigationController") { "navigateUp: nothing to pop." }
+            return
         }
 
+        lastEvent = NavigationEvent.NavigateUp
+        backStack.removeLastOrNull()
         updateState()
     }
 
-    override fun <D : NavDestination> popBackTo(destination: D, inclusive: Boolean) {
+    override fun popBackTo(destination: NavDestination, inclusive: Boolean) {
         val idx = backStack.indexOfLast { it::class == destination::class }
         if (idx < 0) {
             Logger.w("NavigationController") {
-                "popBackTo: ${destination::class.simpleName} not found."
+                "popBackTo: ${destination::class.simpleName} not found in backStack."
             }
             return
         }
+
         lastEvent = NavigationEvent.PopBackTo
-        lastTransition = NavTransitions.fade
         val removeFrom = if (inclusive) idx else idx + 1
         if (removeFrom >= backStack.size) return
+
         repeat(backStack.size - removeFrom) {
             if (backStack.size > removeFrom) backStack.removeAt(removeFrom)
         }
-
-        Logger.i("NavigationController") {
-            "popBackTo(${destination::class.simpleName}, inclusive=$inclusive) → backStack: $backStack"
-        }
-
         updateState()
     }
 
-    override fun popBackTo(section: NavSection, inclusive: Boolean) {
-        val root = sectionRoots[section]
-        if (root == null) {
-            Logger.w("NavigationController") {
-                "popBackTo(section): No root for $section."
-            }
-            return
-        }
-        val idx = backStack.indexOfLast { it::class == root::class }
-        if (idx < 0) {
-            Logger.w("NavigationController") {
-                "popBackTo(section): root not in stack."
-            }
-            return
-        }
-        lastEvent = NavigationEvent.PopBackTo
-        lastTransition = NavTransitions.fade
-        val removeFrom = if (inclusive) idx else idx + 1
-        if (removeFrom >= backStack.size) return
-        repeat(backStack.size - removeFrom) {
-            if (backStack.size > removeFrom) backStack.removeAt(removeFrom)
-        }
-
-        Logger.i("NavigationController") {
-            "popBackTo(section=${section::class.simpleName}, inclusive=$inclusive) → backStack: $backStack"
-        }
-
-        updateState()
-    }
-
-    override fun <D : NavDestination> clearStackAndNavigate(destination: D) {
+    override fun clearStackAndNavigateTo(destination: NavDestination) {
         lastEvent = NavigationEvent.ClearStack
-        lastTransition = NavTransitions.fade
         backStack.clear()
         backStack.add(destination)
-        if (!isShellRoot(destination)) {
-            sectionOf(destination)?.let { lastTabPerSection[it] = destination }
-        }
 
-        Logger.i("NavigationController") {
-            "clearStackAndNavigate(${destination::class.simpleName}) → backStack: $backStack"
+        // Also clear tab state
+        lastActivePerGroup.clear()
+        val groupClass = NavigationGraph.groupOf(destination)
+        if (groupClass != null) {
+            lastActivePerGroup[groupClass] = destination
         }
 
         updateState()
     }
 
-    private fun buildShellChain(targetSection: NavSection): List<NavDestination> {
-        val chain = mutableListOf<NavSection>()
-        var current: NavSection? = targetSection
-        while (current != null) {
-            chain.add(0, current)
-            current = parentSections[current]
-        }
-
-        val result = mutableListOf<NavDestination>()
-
-        chain.forEach { section ->
-            if (section == targetSection) {
-                val lastTab = lastTabPerSection[section]
-                val dest = if (lastTab != null && !isShellRoot(lastTab)) {
-                    lastTab
-                } else {
-                    sectionDefaults[section] ?: sectionRoots[section]
-                }
-                dest?.let { result.add(it) }
-            } else {
-                sectionRoots[section]?.let { result.add(it) }
-            }
-        }
-
-        Logger.i("NavigationController") {
-            "buildShellChain(${targetSection::class.simpleName}) → $result"
-        }
-
-        return result
+    /**
+     * Returns the currently active destination for a tabs group.
+     * Falls back to the group's startDestination if never visited.
+     */
+    fun activeDestinationFor(groupClass: KClass<out NavGroup>): NavDestination? {
+        return lastActivePerGroup[groupClass]
+            ?: NavigationGraph.startDestinationFor(groupClass)
     }
 
-    private fun defaultSwitchTransition(
-        fromSection: NavSection?,
-        toSection: NavSection
-    ): NavTransitionSpec {
-        val fromIndex = fromSection?.let { sectionIndices[it] } ?: return NavTransitions.fade
-        val toIndex = sectionIndices[toSection] ?: return NavTransitions.fade
-        return if (toIndex > fromIndex) NavTransitions.slideInFromRight
-        else NavTransitions.slideInFromLeft
+    /**
+     * Returns the current destination in the BackStack that belongs to
+     * the given group. Used by rememberCurrentTabInGroup.
+     */
+    internal fun currentDestinationInGroup(groupClass: KClass<out NavGroup>): NavDestination? {
+        return lastActivePerGroup[groupClass]
+            ?: NavigationGraph.startDestinationFor(groupClass)
     }
 }

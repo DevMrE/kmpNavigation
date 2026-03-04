@@ -7,8 +7,8 @@ package com.kmp.navigation
 enum class NavigationEvent {
     Idle,
     NavigateTo,
-    SwitchTo,
     NavigateUp,
     PopBackTo,
+    SwitchTab,
     ClearStack
 }

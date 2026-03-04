@@ -3,68 +3,37 @@ package com.kmp.navigation
 /**
  * Platform-agnostic navigation API.
  *
- * Inject this interface into ViewModels via Koin or use
- * [rememberNavigation] in Composables.
+ * Inject via Koin or use [rememberNavigation] in Composables.
+ *
+ * Behavior is determined by registration:
+ * - `screen<D>` → lands in BackStack, navigateUp() possible
+ * - `content<D>` → lands in BackStack, respects parent bounds
+ * - `tabs<G>` → does NOT land in BackStack, last active destination per group is remembered
  *
  * ```kotlin
  * class HomeViewModel(private val navigation: Navigation) : ViewModel() {
- *     fun onMovieClicked(id: String) {
- *         navigation.navigateTo(DetailDestination(id))
- *     }
- *     fun onSettingsClicked() {
- *         navigation.switchTo(SettingsSection)
- *     }
+ *     fun onMovieClicked(id: String) = navigation.navigateTo(DetailScreenDestination(id))
+ *     fun onSettingsClicked() = navigation.navigateTo(SettingsContentDestination)
  * }
  * ```
  */
 interface Navigation {
 
     /**
-     * Push [destination] onto the back stack.
+     * Navigate to [destination].
+     *
+     * If [destination] belongs to a `tabs` group → switches tab, no BackStack entry.
+     * If [destination] is a `screen` or `content` → adds to BackStack.
      *
      * ```kotlin
-     * navigation.navigateTo(DetailDestination(id = "42"))
-     * navigation.navigateTo(ProfileDestination) { singleTop = true }
+     * navigation.navigateTo(DetailScreenDestination("42"))
+     * navigation.navigateTo(SettingsContentDestination)
      * ```
      */
-    fun <D : NavDestination> navigateTo(
-        destination: D,
-        options: NavOptions.() -> Unit = {}
-    )
+    fun navigateTo(destination: NavDestination)
 
     /**
-     * Switch to [section] without pushing onto the back stack.
-     *
-     * Builds a full shell chain automatically. The last visited destination
-     * of [section] is restored. If never visited, the configured root is used.
-     *
-     * ```kotlin
-     * navigation.switchTo(HomeSection)
-     * navigation.switchTo(SettingsSection)
-     * ```
-     */
-    fun switchTo(
-        section: NavSection,
-        transition: NavTransitionSpec? = null
-    )
-
-    /**
-     * Switch to [destination] without pushing onto the back stack.
-     *
-     * Use this for tab switching within a section.
-     *
-     * ```kotlin
-     * navigation.switchTo(MovieDestination)
-     * navigation.switchTo(SeriesDestination)
-     * ```
-     */
-    fun <D : NavDestination> switchTo(
-        destination: D,
-        transition: NavTransitionSpec? = null
-    )
-
-    /**
-     * Pop the top entry from the back stack.
+     * Pop the top entry from the BackStack.
      * No-op if only one entry remains.
      */
     fun navigateUp()
@@ -74,23 +43,10 @@ interface Navigation {
      *
      * @param inclusive If true, also removes [destination] itself.
      */
-    fun <D : NavDestination> popBackTo(
-        destination: D,
-        inclusive: Boolean = false
-    )
+    fun popBackTo(destination: NavDestination, inclusive: Boolean = false)
 
     /**
-     * Pop entries until the root destination of [section] is reached.
-     *
-     * @param inclusive If true, also removes the section root itself.
+     * Clear the entire BackStack and navigate to [destination].
      */
-    fun popBackTo(
-        section: NavSection,
-        inclusive: Boolean = false
-    )
-
-    /**
-     * Clear the entire back stack and navigate to [destination].
-     */
-    fun <D : NavDestination> clearStackAndNavigate(destination: D)
+    fun clearStackAndNavigateTo(destination: NavDestination)
 }
