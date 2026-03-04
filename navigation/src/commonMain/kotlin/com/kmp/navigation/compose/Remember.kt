@@ -8,6 +8,7 @@ import com.kmp.navigation.GlobalNavigation
 import com.kmp.navigation.NavDestination
 import com.kmp.navigation.NavTabs
 import com.kmp.navigation.Navigation
+import com.kmp.navigation.NavigationFactory
 import com.kmp.navigation.NavigationGraph
 
 /**
@@ -19,7 +20,7 @@ import com.kmp.navigation.NavigationGraph
  * ```
  */
 @Composable
-fun rememberNavigation(): Navigation = remember { GlobalNavigation.navigation }
+fun rememberNavigation(): Navigation = remember { NavigationFactory.create() }
 
 /**
  * Observes the current destination at the top of the BackStack.
@@ -50,7 +51,7 @@ fun rememberCurrentDestination(): NavDestination? {
  */
 @Composable
 inline fun <reified Tab : NavTabs> rememberActiveTabIn(): NavDestination? {
-    val controller = GlobalNavigation.controller
+    val controller = NavigationFactory.controller()
     val state by controller.state.collectAsState()
     // Re-compute whenever backStack or lastEvent changes
     return remember(state.backStack, state.lastEvent) {
@@ -76,7 +77,7 @@ inline fun <reified Tab : NavTabs> rememberActiveTabIn(): NavDestination? {
  */
 @Composable
 inline fun <reified Tab : NavTabs> rememberIsTabsActive(): Boolean {
-    val controller = GlobalNavigation.controller
+    val controller = NavigationFactory.controller()
     val state by controller.state.collectAsState()
 
     return remember(state.backStack) {

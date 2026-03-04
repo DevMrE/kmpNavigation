@@ -2,6 +2,7 @@ package com.kmp.navigation.di
 
 import com.kmp.navigation.GlobalNavigation
 import com.kmp.navigation.Navigation
+import com.kmp.navigation.NavigationFactory
 import org.koin.dsl.module
 
 /**
@@ -14,5 +15,5 @@ import org.koin.dsl.module
  * ```
  */
 val navigationModule = module {
-    single<Navigation> { GlobalNavigation.navigation }
+    single<Navigation> { NavigationFactory.create() }
 }
