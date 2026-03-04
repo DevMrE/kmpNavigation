@@ -6,7 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import com.kmp.navigation.GlobalNavigation
 import com.kmp.navigation.NavDestination
-import com.kmp.navigation.NavGroup
+import com.kmp.navigation.NavTabs
 import com.kmp.navigation.Navigation
 import com.kmp.navigation.NavigationGraph
 
@@ -35,7 +35,7 @@ fun rememberCurrentDestination(): NavDestination? {
 }
 
 /**
- * Observes the currently active destination within a tabs group [G].
+ * Observes the currently active destination within a tabs group [Tab].
  *
  * Use this for highlighting the active tab in a tab bar.
  *
@@ -49,17 +49,17 @@ fun rememberCurrentDestination(): NavDestination? {
  * ```
  */
 @Composable
-inline fun <reified G : NavGroup> rememberActiveTabIn(): NavDestination? {
+inline fun <reified Tab : NavTabs> rememberActiveTabIn(): NavDestination? {
     val controller = GlobalNavigation.controller
     val state by controller.state.collectAsState()
     // Re-compute whenever backStack or lastEvent changes
     return remember(state.backStack, state.lastEvent) {
-        controller.activeDestinationFor(G::class)
+        controller.activeDestinationFor(Tab::class)
     }
 }
 
 /**
- * Returns true if the current top of the BackStack belongs to the tabs group [G]
+ * Returns true if the current top of the BackStack belongs to the tabs group [Tab]
  * or any of its destinations.
  *
  * Use this to determine if a tab group is "active" – e.g. to highlight
@@ -75,12 +75,12 @@ inline fun <reified G : NavGroup> rememberActiveTabIn(): NavDestination? {
  * ```
  */
 @Composable
-inline fun <reified G : NavGroup> rememberIsGroupActive(): Boolean {
+inline fun <reified Tab : NavTabs> rememberIsTabsActive(): Boolean {
     val controller = GlobalNavigation.controller
     val state by controller.state.collectAsState()
 
     return remember(state.backStack) {
-        val destinations = NavigationGraph.destinationsFor(G::class)
+        val destinations = NavigationGraph.destinationsFor(Tab::class)
         val destClasses = destinations.map { it::class }.toSet()
 
         // Group is active if any destination in the BackStack belongs to it

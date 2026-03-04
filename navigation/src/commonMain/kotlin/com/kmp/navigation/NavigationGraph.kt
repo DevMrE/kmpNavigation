@@ -14,26 +14,26 @@ object NavigationGraph {
 
     // tabs groups: group KClass → NavTabsData
     private val tabGroups =
-        mutableMapOf<KClass<out NavGroup>, NavTabsData>()
+        mutableMapOf<KClass<out NavTabs>, NavTabsData>()
 
     // reverse lookup: destination KClass → group KClass it belongs to
     private val destinationToGroup =
-        mutableMapOf<KClass<out NavDestination>, KClass<out NavGroup>>()
+        mutableMapOf<KClass<out NavDestination>, KClass<out NavTabs>>()
 
     private var configured = false
 
     internal fun configure(
-        destinationMap: Map<KClass<out NavDestination>, NavScreenData>,
-        tabGroupMap: Map<KClass<out NavGroup>, NavTabsData>,
-        destToGroup: Map<KClass<out NavDestination>, KClass<out NavGroup>>
+        destinationsWithDat: Map<KClass<out NavDestination>, NavScreenData>,
+        navTabsWithData: Map<KClass<out NavTabs>, NavTabsData>,
+        navDestWithTabs: Map<KClass<out NavDestination>, KClass<out NavTabs>>
     ) {
         destinations.clear()
         tabGroups.clear()
         destinationToGroup.clear()
 
-        destinations.putAll(destinationMap)
-        tabGroups.putAll(tabGroupMap)
-        destinationToGroup.putAll(destToGroup)
+        destinations.putAll(destinationsWithDat)
+        tabGroups.putAll(navTabsWithData)
+        destinationToGroup.putAll(navDestWithTabs)
 
         configured = true
         Logger.i("NavigationGraph") {
@@ -50,13 +50,13 @@ object NavigationGraph {
     /**
      * Find the tabs group a destination belongs to, if any.
      */
-    internal fun groupOf(destination: NavDestination): KClass<out NavGroup>? =
+    internal fun groupOf(destination: NavDestination): KClass<out NavTabs>? =
         destinationToGroup[destination::class]
 
     /**
      * Find tabs data for a group.
      */
-    internal fun tabsDataFor(groupClass: KClass<out NavGroup>): NavTabsData? =
+    internal fun tabsDataFor(groupClass: KClass<out NavTabs>): NavTabsData? =
         tabGroups[groupClass]
 
     /**
@@ -68,13 +68,13 @@ object NavigationGraph {
     /**
      * Returns the start destination for a group.
      */
-    internal fun startDestinationFor(groupClass: KClass<out NavGroup>): NavDestination? =
+    internal fun startDestinationFor(groupClass: KClass<out NavTabs>): NavDestination? =
         tabGroups[groupClass]?.startDestination
 
     /**
      * Returns all destinations belonging to a group.
      */
-    fun destinationsFor(groupClass: KClass<out NavGroup>): List<NavDestination> =
+    fun destinationsFor(groupClass: KClass<out NavTabs>): List<NavDestination> =
         tabGroups[groupClass]?.destinations ?: emptyList()
 
     /**

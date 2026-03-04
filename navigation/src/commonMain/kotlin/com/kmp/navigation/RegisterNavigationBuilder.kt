@@ -31,14 +31,14 @@ import kotlin.reflect.KClass
 @NavigationDsl
 class RegisterNavigationBuilder {
 
-    internal val destinationMap =
+    internal val destinationsWithDat =
         mutableMapOf<KClass<out NavDestination>, NavScreenData>()
 
-     val tabGroupMap =
-        mutableMapOf<KClass<out NavGroup>, NavTabsData>()
+     val navTabsWithData =
+        mutableMapOf<KClass<out NavTabs>, NavTabsData>()
 
-    val destToGroup =
-        mutableMapOf<KClass<out NavDestination>, KClass<out NavGroup>>()
+    val navDestWithTabs =
+        mutableMapOf<KClass<out NavDestination>, KClass<out NavTabs>>()
 
     /**
      * Register a content destination.
@@ -81,43 +81,43 @@ class RegisterNavigationBuilder {
      * )
      * ```
      */
-    inline fun <reified G : NavGroup> tabs(
+    inline fun <reified G : NavTabs> tabs(
         startDestination: NavDestination,
         vararg destinations: NavDestination
     ) {
         val groupClass = G::class
-        val destList = destinations.toList()
+        val navDestinationLisst = destinations.toList()
 
-        if (destList.isEmpty()) {
+        if (navDestinationLisst.isEmpty()) {
             Logger.w("RegisterNavigationBuilder") {
                 "tabs<${groupClass.simpleName}>: no destinations provided – skipping."
             }
             return
         }
 
-        if (!destList.any { it::class == startDestination::class }) {
+        if (!navDestinationLisst.any { it::class == startDestination::class }) {
             Logger.w("RegisterNavigationBuilder") {
                 "tabs<${groupClass.simpleName}>: startDestination ${startDestination::class.simpleName} " +
                         "is not in destinations list – using first destination as fallback."
             }
         }
 
-        val resolvedStart = destList.firstOrNull { it::class == startDestination::class }
-            ?: destList.first()
+        val resolvedStart = navDestinationLisst.firstOrNull { it::class == startDestination::class }
+            ?: navDestinationLisst.first()
 
-        tabGroupMap[groupClass] = NavTabsData(
-            groupClass = groupClass,
+        navTabsWithData[groupClass] = NavTabsData(
+            tabsClass = groupClass,
             startDestination = resolvedStart,
-            destinations = destList
+            destinations = navDestinationLisst
         )
 
         // Register reverse lookup
-        destList.forEach { dest ->
-            destToGroup[dest::class] = groupClass
+        navDestinationLisst.forEach { dest ->
+            navDestWithTabs[dest::class] = groupClass
         }
 
         Logger.i("RegisterNavigationBuilder") {
-            "tabs<${groupClass.simpleName}> registered with ${destList.size} destinations, " +
+            "tabs<${groupClass.simpleName}> registered with ${navDestinationLisst.size} destinations, " +
                     "start: ${resolvedStart::class.simpleName}"
         }
     }
@@ -128,14 +128,14 @@ class RegisterNavigationBuilder {
         type: NavDestinationType,
         composable: @Composable (D) -> Unit
     ) {
-        if (destinationMap.containsKey(klass)) {
+        if (destinationsWithDat.containsKey(klass)) {
             Logger.w("RegisterNavigationBuilder") {
                 "${klass.simpleName} already registered – skipping."
             }
             return
         }
 
-        destinationMap[klass] = NavScreenData(
+        destinationsWithDat[klass] = NavScreenData(
             content = { dest ->
                 @Suppress("UNCHECKED_CAST")
                 if (klass.isInstance(dest)) {

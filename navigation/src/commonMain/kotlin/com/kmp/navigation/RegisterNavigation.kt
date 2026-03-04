@@ -71,9 +71,9 @@ fun registerNavigation(
     val groupParents = resolveGroupParents(dsl)
 
     NavigationGraph.configure(
-        destinationMap = dsl.destinationMap,
-        tabGroupMap = dsl.tabGroupMap,
-        destToGroup = dsl.destToGroup
+        destinationsWithDat = dsl.destinationsWithDat,
+        navTabsWithData = dsl.navTabsWithData,
+        navDestWithTabs = dsl.navDestWithTabs
     )
 
     val controller = GlobalNavigation.controller
@@ -113,16 +113,16 @@ fun registerNavigation(
  */
 private fun resolveGroupParents(
     dsl: RegisterNavigationBuilder
-): Map<KClass<out NavGroup>, NavDestination> {
-    val result = mutableMapOf<KClass<out NavGroup>, NavDestination>()
+): Map<KClass<out NavTabs>, NavDestination> {
+    val result = mutableMapOf<KClass<out NavTabs>, NavDestination>()
 
     // For each group G, find a destination D in another group P such that:
     // D is not in G's destinations, but D is in P's destinations
     // AND D is registered as content/screen (not a tab destination itself at top level)
 
-    val allTabDestClasses = dsl.destToGroup.keys
+    val allTabDestClasses = dsl.navDestWithTabs.keys
 
-    dsl.tabGroupMap.forEach { (groupClass, tabsData) ->
+    dsl.navTabsWithData.forEach { (groupClass, tabsData) ->
         val groupDestClasses = tabsData.destinations.map { it::class }.toSet()
 
         // Find a group P whose destinations include a destination D
@@ -138,7 +138,7 @@ private fun resolveGroupParents(
         // The destination in that group that shares the closest "namespace" to G's start
         // is the parent.
 
-        dsl.tabGroupMap.forEach parentSearch@{ (parentGroupClass, parentTabsData) ->
+        dsl.navTabsWithData.forEach parentSearch@{ (parentGroupClass, parentTabsData) ->
             if (parentGroupClass == groupClass) return@parentSearch
 
             // Check if parent group contains any destination that could parent G

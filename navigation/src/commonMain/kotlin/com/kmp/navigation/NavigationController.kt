@@ -27,7 +27,7 @@ class NavigationController : Navigation {
 
     // Last active destination per group – for tab state restoration
     // Key: group KClass, Value: last active destination in that group
-    private val lastActivePerGroup = mutableMapOf<KClass<out NavGroup>, NavDestination>()
+    private val lastActivePerGroup = mutableMapOf<KClass<out NavTabs>, NavDestination>()
 
     // Last active destination per tabs-destination that is itself in a parent group
     // This handles nested tabs correctly
@@ -103,16 +103,16 @@ class NavigationController : Navigation {
      *
      * This is a best-effort lookup – returns null if no parent found.
      */
-    private fun findParentTabDestinationFor(groupClass: KClass<out NavGroup>): NavDestination? {
+    private fun findParentTabDestinationFor(groupClass: KClass<out NavTabs>): NavDestination? {
         // We rely on the registered group nesting info set during registration
         return groupParents[groupClass]
     }
 
     // Group parent destination lookup: group KClass → parent destination that renders it
     // Set during registerNavigation via groupNesting
-    private val groupParents = mutableMapOf<KClass<out NavGroup>, NavDestination>()
+    private val groupParents = mutableMapOf<KClass<out NavTabs>, NavDestination>()
 
-    internal fun setGroupParents(parents: Map<KClass<out NavGroup>, NavDestination>) {
+    internal fun setGroupParents(parents: Map<KClass<out NavTabs>, NavDestination>) {
         groupParents.putAll(parents)
     }
 
@@ -133,28 +133,27 @@ class NavigationController : Navigation {
      * Does NOT add to BackStack.
      * Remembers the last active destination per group.
      */
-    private fun switchTab(destination: NavDestination, groupClass: KClass<out NavGroup>) {
+    private fun switchTab(destination: NavDestination, tabsClass: KClass<out NavTabs>) {
         lastEvent = NavigationEvent.SwitchTab
 
-        // Find the parent destination for this group in the current stack
-        val parentDest = groupParents[groupClass]
+        // Remember the active destination for this tabs group
+        lastActivePerGroup[tabsClass] = destination
 
-        if (parentDest != null) {
-            // Find where the parent destination is in the backStack
-            val parentIndex = backStack.indexOfLast { it::class == parentDest::class }
+        // Update BackStack so Compose recomposes NavigationContent
+        // Replace the last destination of this tabs group in the stack
+        val tabsDestClasses = NavigationGraph.destinationsFor(tabsClass).map { it::class }.toSet()
+        val lastTabIndex = backStack.indexOfLast { it::class in tabsDestClasses }
 
-            if (parentIndex >= 0) {
-                // Remove everything after the parent destination
-                // (screen destinations that were pushed on top)
-                val removeFrom = parentIndex + 1
-                repeat(backStack.size - removeFrom) {
-                    if (backStack.size > removeFrom) backStack.removeAt(removeFrom)
-                }
+        if (lastTabIndex >= 0) {
+            // Remove everything from lastTabIndex onwards (including screen destinations on top)
+            val removeFrom = lastTabIndex
+            repeat(backStack.size - removeFrom) {
+                if (backStack.size > removeFrom) backStack.removeAt(removeFrom)
             }
         }
 
-        // Remember the active destination for this group
-        lastActivePerGroup[groupClass] = destination
+        // Push the new tab destination
+        backStack.add(destination)
 
         updateState()
     }
@@ -225,7 +224,7 @@ class NavigationController : Navigation {
      * Returns the currently active destination for a tabs group.
      * Falls back to the group's startDestination if never visited.
      */
-    fun activeDestinationFor(groupClass: KClass<out NavGroup>): NavDestination? {
+    fun activeDestinationFor(groupClass: KClass<out NavTabs>): NavDestination? {
         return lastActivePerGroup[groupClass]
             ?: NavigationGraph.startDestinationFor(groupClass)
     }
@@ -234,7 +233,7 @@ class NavigationController : Navigation {
      * Returns the current destination in the BackStack that belongs to
      * the given group. Used by rememberCurrentTabInGroup.
      */
-    internal fun currentDestinationInGroup(groupClass: KClass<out NavGroup>): NavDestination? {
+    internal fun currentDestinationInGroup(groupClass: KClass<out NavTabs>): NavDestination? {
         return lastActivePerGroup[groupClass]
             ?: NavigationGraph.startDestinationFor(groupClass)
     }

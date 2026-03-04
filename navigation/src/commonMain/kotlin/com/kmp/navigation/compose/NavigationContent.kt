@@ -18,12 +18,12 @@ import androidx.compose.ui.draw.clipToBounds
 import co.touchlab.kermit.Logger
 import com.kmp.navigation.GlobalNavigation
 import com.kmp.navigation.NavDestinationType
-import com.kmp.navigation.NavGroup
+import com.kmp.navigation.NavTabs
 import com.kmp.navigation.NavigationEvent
 import com.kmp.navigation.NavigationGraph
 
 /**
- * Renders the currently active destination within a tabs group [NavGroup].
+ * Renders the currently active destination within a tabs group [NavTabs].
  *
  * - Respects parent bounds via [modifier]
  * - Animates between destinations
@@ -38,7 +38,7 @@ import com.kmp.navigation.NavigationGraph
  * ```
  */
 @Composable
-inline fun <reified NG : NavGroup> NavigationContent(
+inline fun <reified NG : NavTabs> NavigationContent(
     modifier: Modifier = Modifier,
     noinline transitionSpec: (() -> ContentTransform)? = null
 ) {

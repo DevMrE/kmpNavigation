@@ -7,8 +7,8 @@ package com.kmp.navigation
  * Switching between group destinations does NOT add to the BackStack.
  *
  * ```kotlin
- * interface HomeTabs : NavGroup
- * interface AppRoot : NavGroup
+ * interface HomeTabs : NavTab
+ * interface AppRoot : NavTab
  * ```
  */
-interface NavGroup
+interface NavTabs
