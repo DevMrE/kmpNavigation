@@ -71,8 +71,8 @@ fun NavigationRoot(
     Box(modifier = modifier.fillMaxSize()) {
         content()
 
-        if (showExitScreen) {
-            exitScreen?.invoke {
+        if (showExitScreen && exitScreen != null) {
+            exitScreen.invoke {
                 // onConfirm – navigateUp intern aufgerufen
                 controller.navigateUp()
                 showExitScreen = false
