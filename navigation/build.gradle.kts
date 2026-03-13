@@ -69,9 +69,4 @@ android {
     }
 }
 
-tasks.register("publishToJitpack") {
-    group = "publishing"
-    dependsOn("publishAllPublicationsToMavenLocal")
-}
-
 // Use in the terminal: ./gradlew :navigation:publish
