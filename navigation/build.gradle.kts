@@ -11,8 +11,8 @@ plugins {
 }
 
 // publishing version
-group = "com.kmp.navigation"
-version = "1.1.27-alpha08"
+group = "io.github.devmre"
+version = "1.3.0-alpha01"
 
 kotlin {
     compilerOptions {
