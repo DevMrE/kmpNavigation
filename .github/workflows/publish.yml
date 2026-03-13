@@ -7,10 +7,11 @@ on:
 
 jobs:
   publish:
-    runs-on: macos-latest  # ← macOS damit iOS gebaut werden kann
+    runs-on: macos-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Library
+        uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -22,17 +23,17 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: devmre/maven-repo
-          path: ../maven-repo
+          path: maven-repo
           token: ${{ secrets.MAVEN_REPO_TOKEN }}
 
       - name: Publish
         run: ./gradlew publishAllPublicationsToGitHubMavenRepository
 
-      - name: Push to maven-repo
+      - name: Push artifacts to maven-repo
         run: |
-          cd ../maven-repo
+          cd maven-repo
           git config user.email "ci@github.com"
           git config user.name "GitHub Actions"
           git add .
-          git commit -m "release ${{ github.ref_name }}"
+          git commit -m "release ${{ github.ref_name }}" --allow-empty
           git push
