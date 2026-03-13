@@ -1,5 +1,5 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.gradle.api.publish.maven.MavenPublication
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -25,11 +25,11 @@ kotlin {
         }
     }
 
-    jvm("desktop") {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
-        }
-    }
+//    jvm("desktop") {
+//        compilerOptions {
+//            jvmTarget.set(JvmTarget.JVM_17)
+//        }
+//    }
 
     iosArm64()
     iosSimulatorArm64()
@@ -69,19 +69,20 @@ android {
     }
 }
 
-// Desktop Jar Task (for Maven-Publishing)
-tasks.register<Jar>("desktopJar") {
-    archiveClassifier.set("desktop")
-    from(kotlin.targets["desktop"].compilations["main"].output)
-}
-
 // Maven Publishing
 publishing {
-    publications.withType<MavenPublication> {
-        // Android AAR
-        components.findByName("android")?.let { from(it) }
-
-        // Desktop/JVM Jar
-        artifact(tasks.named("desktopJar"))
+    publications {
+        // Nur existierende Targets, Desktop weg
+        create<MavenPublication>("navigation") {
+            from(components["kotlin"])
+            groupId = "com.workstation.kmp"
+            artifactId = "navigation"
+            version = "1.0.0"
+        }
+    }
+    repositories {
+        maven {
+            url = layout.buildDirectory.dir("repo").get().asFile.toURI()
+        }
     }
 }
