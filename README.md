@@ -114,3 +114,11 @@ Unauthorized use of this software is strictly prohibited.
 
 This software is provided **"as is"**, without warranty of any kind, express or implied.
 The author shall not be liable for any damages arising from the use of this software.
+
+## License
+
+Copyright (c) 2026 DevMrE
+
+All Rights Reserved.
+
+This library may not be used, copied, modified, or distributed without explicit permission from the author.
