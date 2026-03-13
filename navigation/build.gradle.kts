@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "com.github.devmre"
-version = "1.3.0-alpha08"
+version = "1.3.0-alpha09"
 
 kotlin {
     compilerOptions {
@@ -24,8 +24,11 @@ kotlin {
         }
     }
 
-    iosArm64()
-    iosSimulatorArm64()
+    val isMac = System.getProperty("os.name").lowercase().contains("mac")
+    if (isMac) {
+        iosArm64()
+        iosSimulatorArm64()
+    }
 
     sourceSets {
         commonMain.dependencies {
