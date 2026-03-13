@@ -46,11 +46,9 @@ kotlin {
         }
 
         androidMain.dependencies {
-            // hier Android-spezifische deps
         }
 
         iosMain.dependencies {
-            // hier iOS-spezifische deps
         }
     }
 }
