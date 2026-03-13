@@ -73,16 +73,17 @@ android {
 
 publishing {
     publications.withType<MavenPublication> {
-        // Android AAR
-        if (components.findByName("android") != null) {
-            from(components["android"])
+        // Android AAR muss nach Evaluation referenziert werden
+        afterEvaluate {
+            if (components.findByName("android") != null) {
+                from(components["android"])
+            }
         }
 
-        // Desktop/JVM Jar
+        // Desktop / JVM Jar
         artifact(tasks.named("desktopJar"))
     }
 }
-
 // For publishing:
 //git tag v1.3.0-alpha01
 //git push origin v1.3.0-alpha01
