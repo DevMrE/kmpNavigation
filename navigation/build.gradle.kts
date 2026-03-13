@@ -73,9 +73,12 @@ android {
 
 publishing {
     publications.withType<MavenPublication> {
+        // Android AAR
         if (components.findByName("android") != null) {
             from(components["android"])
         }
+
+        // Desktop/JVM Jar
         artifact(tasks.named("desktopJar"))
     }
 }
