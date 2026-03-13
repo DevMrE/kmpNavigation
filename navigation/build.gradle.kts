@@ -12,7 +12,7 @@ plugins {
 
 // publishing version
 group = "io.github.devmre"
-version = "1.3.0-alpha03"
+version = "1.3.0-alpha04"
 
 kotlin {
     compilerOptions {
@@ -77,7 +77,7 @@ publishing {
         withType<MavenPublication> {
             groupId = "com.github.DevMrE"
             artifactId = "kmpNavigation"
-            version = "1.3.0-alpha03"
+            version = "1.3.0-alpha04"
         }
     }
 }
