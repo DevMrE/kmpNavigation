@@ -72,24 +72,11 @@ android {
 }
 
 publishing {
-    publications {
-        // MavenPublication für KMP & Android
-        val kmpPublication by creating(MavenPublication::class) {
-            groupId = "com.github.DevMrE"
-            artifactId = "kmpNavigation"
-            version = "1.3.0-alpha07"
-
-            // Android AAR
-            afterEvaluate {
-                from(components["android"])
-            }
-
-            // Desktop / JVM
-            artifact(tasks.named("desktopJar"))
-
-            // Metadata
-            artifact(tasks.named("metadataJar"))
+    publications.withType<MavenPublication> {
+        if (components.findByName("android") != null) {
+            from(components["android"])
         }
+        artifact(tasks.named("desktopJar"))
     }
 }
 
