@@ -10,14 +10,14 @@ plugins {
 
 // publishing version
 group = "io.github.devmre"
-version = "1.3.0-alpha01"
+version = "1.3.0-alpha02"
 
 kotlin {
     compilerOptions {
         freeCompilerArgs.add("-Xcontext-parameters")
     }
 
-    androidTarget {
+    androidTarget("android") {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
@@ -45,6 +45,14 @@ kotlin {
 
             implementation(libs.navigation3)
         }
+
+        androidMain.dependencies {
+
+        }
+
+        iosMain.dependencies {
+
+        }
     }
 }
 
@@ -61,4 +69,6 @@ android {
     }
 }
 
-// Use in the terminal: ./gradlew :navigation:publish
+// For publishing:
+//git tag v1.3.0-alpha01
+//git push origin v1.3.0-alpha01
