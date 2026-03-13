@@ -6,8 +6,6 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.serialization)
-
-    id("maven-publish")
 }
 
 // publishing version
@@ -60,23 +58,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-}
-
-publishing {
-    repositories {
-        maven {
-            name = "KmpNavigationPublisher"
-
-            url = uri("https://maven.pkg.github.com/DevMrE/kmpNavigation")
-
-            credentials {
-                username = project.findProperty("gpr.user") as String?
-                    ?: System.getenv("GITHUB_ACTOR")
-                password = project.findProperty("gpr.token") as String?
-                    ?: System.getenv("GITHUB_TOKEN")
-            }
-        }
     }
 }
 
