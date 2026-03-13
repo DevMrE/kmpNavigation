@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "com.github.devmre"
-version = "1.3.0-alpha14"
+version = "1.3.0-alpha15"
 
 kotlin {
     compilerOptions {
@@ -19,6 +19,12 @@ kotlin {
 
     androidTarget("android") {
         publishLibraryVariants("release")
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+    }
+
+    jvm("desktop") {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
