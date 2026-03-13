@@ -12,7 +12,7 @@ plugins {
 
 // publishing version
 group = "io.github.devmre"
-version = "1.3.0-alpha05"
+version = "1.3.0-alpha06"
 
 kotlin {
     compilerOptions {
@@ -77,7 +77,7 @@ publishing {
         val kmpPublication by creating(MavenPublication::class) {
             groupId = "com.github.DevMrE"
             artifactId = "kmpNavigation"
-            version = "1.3.0-alpha05"
+            version = "1.3.0-alpha06"
 
             // Android AAR
             afterEvaluate {
