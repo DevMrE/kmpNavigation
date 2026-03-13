@@ -69,4 +69,6 @@ android {
     }
 }
 
-// Use in the terminal: ./gradlew :navigation:publish
+// For publishing:
+//git tag v1.3.0-alpha01
+//git push origin v1.3.0-alpha01
