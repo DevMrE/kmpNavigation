@@ -6,11 +6,13 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.serialization)
+
+    id("maven-publish")
 }
 
 // publishing version
 group = "io.github.devmre"
-version = "1.3.0-alpha03"
+version = "1.3.0-alpha04"
 
 kotlin {
     compilerOptions {
@@ -66,6 +68,17 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+publishing {
+    publications {
+        // MavenPublication für KMP & Android
+        withType<MavenPublication> {
+            groupId = "com.github.DevMrE"
+            artifactId = "kmpNavigation"
+            version = "1.3.0-alpha04"
+        }
     }
 }
 
