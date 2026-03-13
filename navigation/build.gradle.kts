@@ -1,4 +1,3 @@
-import org.gradle.api.publish.maven.MavenPublication
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -7,12 +6,11 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.serialization)
-
     id("maven-publish")
 }
 
-group = "io.github.devmre"
-version = "1.3.0-alpha07"
+group = "com.github.devmre"
+version = "1.3.0-alpha08"
 
 kotlin {
     compilerOptions {
@@ -20,16 +18,11 @@ kotlin {
     }
 
     androidTarget("android") {
+        publishLibraryVariants("release")
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
     }
-
-//    jvm("desktop") {
-//        compilerOptions {
-//            jvmTarget.set(JvmTarget.JVM_17)
-//        }
-//    }
 
     iosArm64()
     iosSimulatorArm64()
@@ -67,20 +60,8 @@ android {
     }
 }
 
-// Maven Publishing
 publishing {
-    publications {
-        // Nur existierende Targets, Desktop weg
-        create<MavenPublication>("navigation") {
-            from(components["kotlin"])
-            groupId = "com.workstation.kmp"
-            artifactId = "navigation"
-            version = "1.0.0"
-        }
-    }
     repositories {
-        maven {
-            url = layout.buildDirectory.dir("repo").get().asFile.toURI()
-        }
+        mavenLocal()
     }
 }
