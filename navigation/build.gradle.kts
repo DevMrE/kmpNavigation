@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "com.github.devmre"
-version = "1.3.0-alpha09"
+version = "1.3.0-alpha10"
 
 kotlin {
     compilerOptions {
@@ -24,11 +24,8 @@ kotlin {
         }
     }
 
-    val isMac = System.getProperty("os.name").lowercase().contains("mac")
-    if (isMac) {
-        iosArm64()
-        iosSimulatorArm64()
-    }
+    iosArm64()
+    iosSimulatorArm64()
 
     sourceSets {
         commonMain.dependencies {
@@ -65,6 +62,9 @@ android {
 
 publishing {
     repositories {
-        mavenLocal()
+        maven {
+            name = "GitHubMaven"
+            url = uri("${rootProject.projectDir}/../maven-repo")
+        }
     }
 }
