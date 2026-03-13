@@ -10,7 +10,7 @@ plugins {
 
 // publishing version
 group = "io.github.devmre"
-version = "1.3.0-alpha02"
+version = "1.3.0-alpha03"
 
 kotlin {
     compilerOptions {
