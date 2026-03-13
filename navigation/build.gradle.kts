@@ -1,3 +1,4 @@
+import org.gradle.api.publish.maven.MavenPublication
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -10,7 +11,6 @@ plugins {
     id("maven-publish")
 }
 
-// publishing version
 group = "io.github.devmre"
 version = "1.3.0-alpha07"
 
@@ -25,11 +25,11 @@ kotlin {
         }
     }
 
-    jvm("desktop") {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
-        }
-    }
+//    jvm("desktop") {
+//        compilerOptions {
+//            jvmTarget.set(JvmTarget.JVM_17)
+//        }
+//    }
 
     iosArm64()
     iosSimulatorArm64()
@@ -38,22 +38,17 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.kotlin.stdlib)
             implementation(libs.bundles.compose)
-
             implementation(libs.bundles.lifecycle)
-
             implementation(libs.composeNavigation)
             implementation(libs.bundles.koin)
             implementation(libs.logger)
-
             implementation(libs.navigation3)
         }
 
         androidMain.dependencies {
-
         }
 
         iosMain.dependencies {
-
         }
     }
 }
@@ -61,6 +56,7 @@ kotlin {
 android {
     namespace = "com.kmp.navigation"
     compileSdk = 36
+
     defaultConfig {
         minSdk = 24
     }
@@ -71,19 +67,20 @@ android {
     }
 }
 
+// Maven Publishing
 publishing {
-    publications.withType<MavenPublication> {
-        // Android AAR muss nach Evaluation referenziert werden
-        afterEvaluate {
-            if (components.findByName("android") != null) {
-                from(components["android"])
-            }
+    publications {
+        // Nur existierende Targets, Desktop weg
+        create<MavenPublication>("navigation") {
+            from(components["kotlin"])
+            groupId = "com.workstation.kmp"
+            artifactId = "navigation"
+            version = "1.0.0"
         }
-
-        // Desktop / JVM Jar
-        artifact(tasks.named("desktopJar"))
+    }
+    repositories {
+        maven {
+            url = layout.buildDirectory.dir("repo").get().asFile.toURI()
+        }
     }
 }
-// For publishing:
-//git tag v1.3.0-alpha01
-//git push origin v1.3.0-alpha01
