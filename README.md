@@ -1,48 +1,116 @@
-This is a Kotlin Multiplatform project targeting Android, iOS, Desktop (JVM).
+# KMP Navigation
 
-* [/composeApp](./composeApp/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./composeApp/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./composeApp/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./composeApp/src/jvmMain/kotlin)
-    folder is the appropriate location.
+A **Kotlin Multiplatform navigation library** that enables shared navigation logic across multiple platforms.
 
-* [/iosApp](./iosApp/iosApp) contains iOS applications. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
+The library is designed to allow navigation to be triggered directly from **ViewModels**, avoiding UI-driven "ping-pong navigation patterns" and enabling navigation decisions based on complex business logic.
 
-### Build and Run Android Application
+## Overview
 
-To build and run the development version of the Android app, use the run configuration from the run widget
-in your IDE’s toolbar or build it directly from the terminal:
-- on macOS/Linux
-  ```shell
-  ./gradlew :composeApp:assembleDebug
-  ```
-- on Windows
-  ```shell
-  .\gradlew.bat :composeApp:assembleDebug
-  ```
+KMP Navigation provides a unified way to handle navigation across different platforms in a Kotlin Multiplatform project.
 
-### Build and Run Desktop (JVM) Application
+Instead of relying solely on UI layers to control navigation, this library allows navigation to be handled within **ViewModels**, making it possible to react to complex application logic and state changes.
 
-To build and run the development version of the desktop app, use the run configuration from the run widget
-in your IDE’s toolbar or run it directly from the terminal:
-- on macOS/Linux
-  ```shell
-  ./gradlew :composeApp:run
-  ```
-- on Windows
-  ```shell
-  .\gradlew.bat :composeApp:run
-  ```
+This approach helps avoid situations where the UI needs to repeatedly delegate navigation decisions back to the ViewModel (the so-called *ping-pong behavior*).
 
-### Build and Run iOS Application
+## Features
 
-To build and run the development version of the iOS app, use the run configuration from the run widget
-in your IDE’s toolbar or open the [/iosApp](./iosApp) directory in Xcode and run it from there.
+* Kotlin Multiplatform compatible
+* Centralized navigation logic
+* ViewModel-driven navigation
+* Optional **Koin integration**
+* Works with custom Dependency Injection setups
+* Avoids UI/ViewModel navigation ping-pong patterns
+* Platform-agnostic navigation handling
 
----
+## Dependency Injection
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
+The library can be integrated into your project in two different ways.
+
+### 1. Using the provided Koin modules
+
+If your project uses **Koin**, the library provides ready-to-use modules that can simply be added to your DI setup.
+
+```kotlin
+modules(
+    navigationModule()
+)
+```
+
+### 2. Using a custom DI setup
+
+If you are not using Koin, the navigation system can be created manually and integrated into your own dependency injection framework.
+
+```kotlin
+val navigation = NavigationFactory.create()
+```
+
+This allows the navigation instance to be injected into **ViewModels** or other components that require navigation capabilities.
+
+## Example Usage
+
+Example inside a ViewModel:
+
+```kotlin
+class ExampleViewModel(
+    private val navigation: Navigation
+) {
+
+    fun onLoginSuccess() {
+        navigation.navigate(Destination.Home)
+    }
+}
+```
+
+Example inside a Composable:
+
+```kotlin
+@Composable
+fun Foo() { 
+    val navigation = rememberNavigation()
+    
+    navigation.navigateTo(Destination.Home)
+}
+```
+
+This enables navigation to be triggered from application logic instead of relying solely on UI events.
+
+## Supported Platforms
+
+The library is designed for **Kotlin Multiplatform** and can be used on:
+
+* Android
+* iOS
+* JVM
+* Other supported KMP targets depending on your project configuration
+
+## Contributing
+
+This repository currently does not accept public contributions.
+
+If you have questions, suggestions, or encounter issues, please open an issue or contact the author directly.
+
+## License / Usage Restrictions
+
+Copyright (c) 2026 [Emrah Cicek]
+
+All rights reserved.
+
+This library and its source code are the intellectual property of the author.
+
+No part of this software may be used, copied, modified, merged, published, distributed, sublicensed, or integrated into other software without **explicit prior permission from the author**.
+
+Permission must be obtained before:
+
+* Using this library in private or personal projects
+* Using this library in commercial applications
+* Redistributing the source code or binaries
+* Creating derivative works
+
+To request permission for usage, please contact the author.
+
+Unauthorized use of this software is strictly prohibited.
+
+## Disclaimer
+
+This software is provided **"as is"**, without warranty of any kind, express or implied.
+The author shall not be liable for any damages arising from the use of this software.
