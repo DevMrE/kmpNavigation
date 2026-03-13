@@ -10,14 +10,14 @@ plugins {
 
 // publishing version
 group = "io.github.devmre"
-version = "1.3.0-alpha01"
+version = "1.3.0-alpha02"
 
 kotlin {
     compilerOptions {
         freeCompilerArgs.add("-Xcontext-parameters")
     }
 
-    androidTarget {
+    androidTarget("android") {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
@@ -45,6 +45,14 @@ kotlin {
 
             implementation(libs.navigation3)
         }
+
+        androidMain.dependencies {
+
+        }
+
+        iosMain.dependencies {
+
+        }
     }
 }
 
@@ -59,6 +67,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+}
+
+tasks.register("publishToJitpack") {
+    group = "publishing"
+    dependsOn("publishAllPublicationsToMavenLocal")
 }
 
 // Use in the terminal: ./gradlew :navigation:publish
