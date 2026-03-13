@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.api.publish.maven.MavenPublication
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -10,7 +11,6 @@ plugins {
     id("maven-publish")
 }
 
-// publishing version
 group = "io.github.devmre"
 version = "1.3.0-alpha07"
 
@@ -38,22 +38,19 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.kotlin.stdlib)
             implementation(libs.bundles.compose)
-
             implementation(libs.bundles.lifecycle)
-
             implementation(libs.composeNavigation)
             implementation(libs.bundles.koin)
             implementation(libs.logger)
-
             implementation(libs.navigation3)
         }
 
         androidMain.dependencies {
-
+            // hier Android-spezifische deps
         }
 
         iosMain.dependencies {
-
+            // hier iOS-spezifische deps
         }
     }
 }
@@ -61,6 +58,7 @@ kotlin {
 android {
     namespace = "com.kmp.navigation"
     compileSdk = 36
+
     defaultConfig {
         minSdk = 24
     }
@@ -71,19 +69,19 @@ android {
     }
 }
 
+// Desktop Jar Task (for Maven-Publishing)
+tasks.register<Jar>("desktopJar") {
+    archiveClassifier.set("desktop")
+    from(kotlin.targets["desktop"].compilations["main"].output)
+}
+
+// Maven Publishing
 publishing {
     publications.withType<MavenPublication> {
-        // Android AAR muss nach Evaluation referenziert werden
-        afterEvaluate {
-            if (components.findByName("android") != null) {
-                from(components["android"])
-            }
-        }
+        // Android AAR
+        components.findByName("android")?.let { from(it) }
 
-        // Desktop / JVM Jar
+        // Desktop/JVM Jar
         artifact(tasks.named("desktopJar"))
     }
 }
-// For publishing:
-//git tag v1.3.0-alpha01
-//git push origin v1.3.0-alpha01
