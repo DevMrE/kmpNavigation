@@ -178,7 +178,7 @@ Scaffold() { paddingValues ->
       
     Box(modifier = Modifier.padding(paddingValues)) {
         NavigationTabs<HomeTabs>()
-        NavigationContent<MovieCategoryListDestination>()
+        NavigationContent<SettingsDestination>()
     }
 
 }
