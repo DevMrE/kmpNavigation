@@ -139,6 +139,14 @@ registerNavigation(startDestination = HomeDestination) {
 
 It is recommended to register the navigation **before the first screen is rendered**.
 
+When switching between tabs, the destination is **not added to the back stack**.
+Instead, the current destination is **replaced**, which means navigating back within tabs is not possible.
+
+For all other navigation actions, the destination **is added to the back stack**, allowing normal back navigation.
+
+This behavior allows creating a tab-based navigation structure **without requiring nested navigation graphs**.
+
+
 ## Screen and Content
 
 The library provides two ways to define navigation destinations.
