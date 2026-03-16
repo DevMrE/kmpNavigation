@@ -21,6 +21,9 @@ This approach helps avoid situations where the UI needs to repeatedly delegate n
 * Works with custom Dependency Injection setups
 * Avoids UI/ViewModel navigation ping-pong patterns
 * Platform-agnostic navigation handling
+* Type-safe navigation destinations
+* Support for parameterized destinations
+* Optional enter and exit animations
 
 ## Dependency Injection
 
@@ -74,6 +77,124 @@ fun Foo() {
 
 This enables navigation to be triggered from application logic instead of relying solely on UI events.
 
+## Defining Destinations
+
+Navigation targets are defined using `NavDestination`.
+
+Destinations can either be simple objects or contain parameters.
+
+```kotlin
+@Serializable
+data object HomeDestination : NavDestination
+
+@Serializable
+data class DetailDestination(
+    val id: String
+) : NavDestination
+```
+
+Parameterized destinations allow navigation with strongly typed arguments.
+
+## Defining Tabs
+
+Tabs can be created using `NavTabs`.
+
+```kotlin
+@Serializable
+data object HomeTabs : NavTabs
+```
+
+Tabs group multiple destinations and allow switching between them.
+
+## Registering Navigation
+
+Before navigation can be used, destinations must be registered.
+
+```kotlin
+registerNavigation(startDestination = HomeDestination) {
+
+    content<HomeDestination> {
+        YourComposable()
+    }
+
+    content<DetailDestination> { data ->
+        YourComposable(data.id)
+    }
+
+    screen<SettingsDestination> {
+        YourComposable()
+    }
+
+    tabs<HomeTabs>(
+        startDestination = HomeDestination,
+        destinations = listOf(
+            HomeDestination,
+            DetailDestination,
+            SettingsDestination
+        )
+    )
+
+}
+```
+
+It is recommended to register the navigation **before the first screen is rendered**.
+
+## Screen and Content
+
+The library provides two ways to define navigation destinations.
+
+`content` respects the bounds of the parent composable and renders within the layout where it is used.
+
+`screen` always renders a full screen destination and ignores the bounds of the parent layout.
+
+## Rendering Navigation
+
+Registered navigation destinations can be rendered inside composables.
+
+```kotlin
+NavigationContent<HomeDestination>()
+```
+
+For tab navigation:
+
+```kotlin
+NavigationTabs<HomeTabs>()
+```
+
+The navigation system will render the registered destination at the position where these composables are placed.
+
+## Example Layout
+
+```kotlin
+Scaffold() { paddingValues ->
+      
+    Box(modifier = Modifier.padding(paddingValues)) {
+        NavigationTabs<HomeTabs>()
+        NavigationContent<MovieCategoryListDestination>()
+    }
+
+}
+```
+
+## Animations
+
+Enter and exit animations can be defined for navigation destinations.
+
+```kotlin
+content<Destination>(
+    enterTransition = {
+        scaleIn()
+    },
+    exitTransition = {
+        scaleOut()
+    }
+) { data ->
+    DestinationScreen(data.param)
+}
+```
+
+This allows defining custom transitions when navigating between destinations.
+
 ## Supported Platforms
 
 The library is designed for **Kotlin Multiplatform** and can be used on:
@@ -91,7 +212,7 @@ If you have questions, suggestions, or encounter issues, please open an issue or
 
 ## License / Usage Restrictions
 
-Copyright (c) 2026 [Emrah Cicek]
+Copyright (c) 2026 Emrah Cicek
 
 All rights reserved.
 
