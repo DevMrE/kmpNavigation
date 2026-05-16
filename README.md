@@ -58,7 +58,7 @@ If your project uses **Koin**, the library provides ready-to-use modules that ca
 
 ```kotlin
 modules(
-    navigationModule()
+    navigationModule
 )
 ```
 
