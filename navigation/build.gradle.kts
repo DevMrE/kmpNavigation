@@ -70,7 +70,7 @@ publishing {
     repositories {
         maven {
             name = "GitHubMaven"
-            url = uri("file:///absolute/path/to/maven-repo")
+            url = uri("${rootProject.rootDir}/../maven-repo")
         }
     }
 }
