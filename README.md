@@ -42,8 +42,10 @@ dependencyResolutionManagement {
 ```
 ## 2. Add dependency to Version Catalog (libs.versions.toml)
 
+[version]
 kmpNavigationVersion = "1.3.0-alpha15"
 
+[libraries]
 kmpNavigation = { module = "com.github.devmre:navigation", version.ref = "kmpNavigationVersion" }
 
 ## Dependency Injection
