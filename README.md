@@ -25,6 +25,27 @@ This approach helps avoid situations where the UI needs to repeatedly delegate n
 * Support for parameterized destinations
 * Optional enter and exit animations
 
+## Installation
+
+### 1. Add repository (settings.gradle.kts)
+
+In your `settings.gradle.kts`, add the following inside `dependencyResolutionManagement`:
+
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        maven {
+            url = uri("https://raw.githubusercontent.com/DevMrE/maven-repo/main")
+        }
+    }
+}
+```
+## 2. Add dependency to Version Catalog (libs.versions.toml)
+
+kmpNavigationVersion = "1.3.0-alpha15"
+
+kmpNavigation = { module = "com.github.devmre:navigation", version.ref = "kmpNavigationVersion" }
+
 ## Dependency Injection
 
 The library can be integrated into your project in two different ways.
