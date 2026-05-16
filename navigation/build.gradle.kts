@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "com.github.devmre"
-version = "1.3.0-alpha20"
+version = "1.3.0-alpha21"
 
 kotlin {
     compilerOptions {
@@ -70,7 +70,7 @@ publishing {
     repositories {
         maven {
             name = "GitHubMaven"
-            url = uri("file://${System.getProperty("user.home")}/maven-repo")
+            url = uri("file:///absolute/path/to/maven-repo")
         }
     }
 }
