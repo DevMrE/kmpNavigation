@@ -3,13 +3,14 @@
   <groupId>com.github.devmre</groupId>
   <artifactId>navigation</artifactId>
   <versioning>
-    <latest>1.3.0-alpha18</latest>
-    <release>1.3.0-alpha18</release>
+    <latest>1.3.0-alpha19</latest>
+    <release>1.3.0-alpha19</release>
     <versions>
       <version>1.3.0-alpha16</version>
       <version>1.3.0-alpha17</version>
       <version>1.3.0-alpha18</version>
+      <version>1.3.0-alpha19</version>
     </versions>
-    <lastUpdated>20260516015732</lastUpdated>
+    <lastUpdated>20260516020248</lastUpdated>
   </versioning>
 </metadata>
