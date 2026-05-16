@@ -144,6 +144,10 @@ registerNavigation(startDestination = HomeDestination) {
         YourComposable(data.id)
     }
 
+    screen<ProfileDestination> {
+        YourComposable()
+    }
+
     screen<SettingsDestination> {
         YourComposable()
     }
@@ -153,7 +157,7 @@ registerNavigation(startDestination = HomeDestination) {
         destinations = listOf(
             HomeDestination,
             DetailDestination,
-            SettingsDestination
+            ProfileDestination
         )
     )
 
@@ -200,8 +204,8 @@ The navigation system will render the registered destination at the position whe
 Scaffold() { paddingValues ->
       
     Box(modifier = Modifier.padding(paddingValues)) {
-        NavigationTabs<HomeTabs>()
-        NavigationContent<SettingsDestination>()
+        NavigationTabs<HomeTabs>() // Example of an HomeScreen with different tabs
+        NavigationContent<SettingsDestination>() // Not part of the HomeTabs but still at the same level from the ui and can be back navigated to the HomeTabs
     }
 
 }
@@ -233,13 +237,18 @@ The library is designed for **Kotlin Multiplatform** and can be used on:
 * Android
 * iOS
 * JVM
-* Other supported KMP targets depending on your project configuration
+* Other plattforms are in progress
 
 ## Contributing
 
 This repository currently does not accept public contributions.
 
 If you have questions, suggestions, or encounter issues, please open an issue or contact the author directly.
+
+## Disclaimer
+
+This software is provided **"as is"**, without warranty of any kind, express or implied.
+The author shall not be liable for any damages arising from the use of this software.
 
 ## License / Usage Restrictions
 
@@ -261,19 +270,5 @@ Permission must be obtained before:
 To request permission for usage, please contact the author.
 
 Unauthorized use of this software is strictly prohibited.
-
-## Disclaimer
-
-This software is provided **"as is"**, without warranty of any kind, express or implied.
-The author shall not be liable for any damages arising from the use of this software.
-
-## License
-
-Copyright (c) 2026 DevMrE
-
-All Rights Reserved.
-
-This library may not be used, copied, modified, modified, distributed,
-or integrated into other software without explicit permission from the author.
 
 See the [LICENSE](./LICENSE) file for more details.
