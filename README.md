@@ -252,7 +252,7 @@ The author shall not be liable for any damages arising from the use of this soft
 
 ## License / Usage Restrictions
 
-Copyright (c) 2026 Emrah Cicek
+Copyright (c) 2026 DevMrE
 
 All rights reserved.
 
