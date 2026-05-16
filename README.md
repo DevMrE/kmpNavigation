@@ -21,6 +21,32 @@ This approach helps avoid situations where the UI needs to repeatedly delegate n
 * Works with custom Dependency Injection setups
 * Avoids UI/ViewModel navigation ping-pong patterns
 * Platform-agnostic navigation handling
+* Type-safe navigation destinations
+* Support for parameterized destinations
+* Optional enter and exit animations
+
+## Installation
+
+### 1. Add repository (settings.gradle.kts)
+
+In your `settings.gradle.kts`, add the following inside `dependencyResolutionManagement`:
+
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        maven {
+            url = uri("https://raw.githubusercontent.com/DevMrE/maven-repo/main")
+        }
+    }
+}
+```
+## 2. Add dependency to Version Catalog (libs.versions.toml)
+
+[version]
+kmpNavigationVersion = "1.3.0-alpha15"
+
+[libraries]
+kmpNavigation = { module = "com.github.devmre:navigation", version.ref = "kmpNavigationVersion" }
 
 ## Dependency Injection
 
@@ -32,7 +58,7 @@ If your project uses **Koin**, the library provides ready-to-use modules that ca
 
 ```kotlin
 modules(
-    navigationModule()
+    navigationModule
 )
 ```
 
@@ -74,6 +100,136 @@ fun Foo() {
 
 This enables navigation to be triggered from application logic instead of relying solely on UI events.
 
+## Defining Destinations
+
+Navigation targets are defined using `NavDestination`.
+
+Destinations can either be simple objects or contain parameters.
+
+```kotlin
+@Serializable
+data object HomeDestination : NavDestination
+
+@Serializable
+data class DetailDestination(
+    val id: String
+) : NavDestination
+```
+
+Parameterized destinations allow navigation with strongly typed arguments.
+
+## Defining Tabs
+
+Tabs can be created using `NavTabs`.
+
+```kotlin
+@Serializable
+data object HomeTabs : NavTabs
+```
+
+Tabs group multiple destinations and allow switching between them.
+
+## Registering Navigation
+
+Before navigation can be used, destinations must be registered.
+
+```kotlin
+registerNavigation(startDestination = HomeDestination) {
+
+    content<HomeDestination> {
+        YourComposable()
+    }
+
+    content<DetailDestination> { data ->
+        YourComposable(data.id)
+    }
+
+    screen<ProfileDestination> {
+        YourComposable()
+    }
+
+    screen<SettingsDestination> {
+        YourComposable()
+    }
+
+    tabs<HomeTabs>(
+        startDestination = HomeDestination,
+        destinations = listOf(
+            HomeDestination,
+            DetailDestination,
+            ProfileDestination
+        )
+    )
+
+}
+```
+
+It is recommended to register the navigation **before the first screen is rendered**.
+
+When switching between tabs, the destination is **not added to the back stack**.
+Instead, the current destination is **replaced**, which means navigating back within tabs is not possible.
+
+For all other navigation actions, the destination **is added to the back stack**, allowing normal back navigation.
+
+This behavior allows creating a tab-based navigation structure **without requiring nested navigation graphs**.
+
+
+## Screen and Content
+
+The library provides two ways to define navigation destinations.
+
+`content` respects the bounds of the parent composable and renders within the layout where it is used.
+
+`screen` always renders a full screen destination and ignores the bounds of the parent layout.
+
+## Rendering Navigation
+
+Registered navigation destinations can be rendered inside composables.
+
+```kotlin
+NavigationContent<HomeDestination>()
+```
+
+For tab navigation:
+
+```kotlin
+NavigationTabs<HomeTabs>()
+```
+
+The navigation system will render the registered destination at the position where these composables are placed.
+
+## Example Layout
+
+```kotlin
+Scaffold() { paddingValues ->
+      
+    Box(modifier = Modifier.padding(paddingValues)) {
+        NavigationTabs<HomeTabs>() // Example of an HomeScreen with different tabs
+        NavigationContent<SettingsDestination>() // Not part of the HomeTabs but still at the same level from the ui and can be back navigated to the HomeTabs
+    }
+
+}
+```
+
+## Animations
+
+Enter and exit animations can be defined for navigation destinations.
+
+```kotlin
+content<Destination>(
+    enterTransition = {
+        scaleIn()
+    },
+    exitTransition = {
+        scaleOut()
+    }
+) { data ->
+    DestinationScreen(data.param)
+}
+```
+
+This allows defining custom transitions when navigating between destinations.
+
 ## Supported Platforms
 
 The library is designed for **Kotlin Multiplatform** and can be used on:
@@ -81,7 +237,7 @@ The library is designed for **Kotlin Multiplatform** and can be used on:
 * Android
 * iOS
 * JVM
-* Other supported KMP targets depending on your project configuration
+* Other plattforms are in progress
 
 ## Contributing
 
@@ -89,9 +245,14 @@ This repository currently does not accept public contributions.
 
 If you have questions, suggestions, or encounter issues, please open an issue or contact the author directly.
 
+## Disclaimer
+
+This software is provided **"as is"**, without warranty of any kind, express or implied.
+The author shall not be liable for any damages arising from the use of this software.
+
 ## License / Usage Restrictions
 
-Copyright (c) 2026 [Emrah Cicek]
+Copyright (c) 2026 DevMrE
 
 All rights reserved.
 
@@ -109,19 +270,5 @@ Permission must be obtained before:
 To request permission for usage, please contact the author.
 
 Unauthorized use of this software is strictly prohibited.
-
-## Disclaimer
-
-This software is provided **"as is"**, without warranty of any kind, express or implied.
-The author shall not be liable for any damages arising from the use of this software.
-
-## License
-
-Copyright (c) 2026 DevMrE
-
-All Rights Reserved.
-
-This library may not be used, copied, modified, modified, distributed,
-or integrated into other software without explicit permission from the author.
 
 See the [LICENSE](./LICENSE) file for more details.
