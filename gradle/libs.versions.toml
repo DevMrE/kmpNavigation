@@ -1,13 +1,13 @@
 [versions]
 agp = "8.12.0"
-androidx-lifecycle = "2.9.6"
-composeHotReload = "1.0.0"
-composeMultiplatform = "1.10.1"
-kotlin = "2.3.10"
-koinVersion = "4.1.1"
+androidx-lifecycle = "2.10.0"
+composeHotReload = "1.1.1"
+composeMultiplatform = "1.11.0"
+kotlin = "2.3.21"
+koinVersion = "4.2.1"
 loggerVersion = "2.0.8"
 comoseNavigationVersion = "2.9.2"
-cmpNavigation3 = "1.0.0-alpha06"
+cmpNavigation3 = "1.1.1"
 
 [libraries]
 kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }

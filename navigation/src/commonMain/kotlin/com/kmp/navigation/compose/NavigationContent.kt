@@ -79,7 +79,7 @@ fun NavigationRoot(
             backStack = navDisplayBackStack,
             onBack = {
                 val nonTabSize = navState.backStack.count { NavigationGraph.findTabs(it) == null }
-                if (nonTabSize == 0) {
+                if (nonTabSize == 1) {
                     showExitScreen = true
                 } else {
                     controller.navigateUp()
