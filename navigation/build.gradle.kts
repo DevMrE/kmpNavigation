@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "com.github.devmre"
-version = "1.3.0-alpha16"
+version = "1.3.0-alpha17"
 
 kotlin {
     compilerOptions {
