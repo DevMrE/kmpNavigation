@@ -70,7 +70,7 @@ publishing {
     repositories {
         maven {
             name = "GitHubMaven"
-            url = uri("${rootProject.projectDir}/maven-repo")
+            url = uri("https://raw.githubusercontent.com/DevMrE/kmpNavigation/main/maven-repo")
         }
     }
 }
