@@ -32,4 +32,5 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-include(":navigation")
+include(":compose-navigation3-helper")
+project(":compose-navigation3-helper").projectDir = file("navigation")

@@ -90,7 +90,7 @@ fun NavigationRoot(
                     if (isScreenOnTop) {
                         val data = NavigationGraph.findScreen(destination)
                         if (data == null) {
-                            Logger.w("KmpNavigation") { "No screen for ${destination::class.simpleName}." }
+                            Logger.w("ComposeNavigation3Helper") { "No screen for ${destination::class.simpleName}." }
                             return@NavEntry
                         }
                         data.content(destination)
@@ -155,7 +155,7 @@ inline fun <reified T : NavTabs> NavigationTabs(
                 else -> DefaultNavAnimations.enterTransition
             }
         },
-        label = "KmpNavigation<${T::class.simpleName}>"
+        label = "ComposeNavigation3Helper<${T::class.simpleName}>"
     ) { destination ->
         HandleDestination(destination)
     }
@@ -227,7 +227,7 @@ inline fun <reified D : NavDestination> NavigationContent(
                     else -> DefaultNavAnimations.enterTransition
                 }
             },
-            label = "KmpNavigation<${D::class.simpleName}>"
+            label = "ComposeNavigation3Helper<${D::class.simpleName}>"
         ) { destination ->
             HandleDestination(destination)
         }
@@ -240,7 +240,7 @@ internal fun HandleDestination(destination: NavDestination?) {
     if (destination == null) return
     val data = NavigationGraph.findScreen(destination)
     if (data == null) {
-        Logger.w("KmpNavigation") {
+        Logger.w("ComposeNavigation3Helper") {
             "No screen for ${destination::class.simpleName}."
         }
         return

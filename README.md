@@ -1,4 +1,4 @@
-# KMP Navigation
+# ComposeNavigation3Helper
 
 A **Kotlin Multiplatform navigation library** that enables shared navigation logic across multiple platforms.
 
@@ -6,7 +6,7 @@ The library is designed to allow navigation to be triggered directly from **View
 
 ## Overview
 
-KMP Navigation provides a unified way to handle navigation across different platforms in a Kotlin Multiplatform project.
+ComposeNavigation3Helper provides a unified way to handle navigation across different platforms in a Kotlin Multiplatform project.
 
 Instead of relying solely on UI layers to control navigation, this library allows navigation to be handled within **ViewModels**, making it possible to react to complex application logic and state changes.
 
@@ -43,10 +43,10 @@ dependencyResolutionManagement {
 ## 2. Add dependency to Version Catalog (libs.versions.toml)
 
 [version]
-kmpNavigationVersion = "1.3.0-alpha15"
+composeNavigation3HelperVersion = "1.3.0-alpha15"
 
 [libraries]
-kmpNavigation = { module = "com.github.devmre:navigation", version.ref = "kmpNavigationVersion" }
+composeNavigation3Helper = { module = "com.github.devmre:navigation", version.ref = "composeNavigation3HelperVersion" }
 
 ## Dependency Injection
 

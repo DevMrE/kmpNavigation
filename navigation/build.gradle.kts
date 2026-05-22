@@ -53,7 +53,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.kmp.navigation"
+    namespace = "com.compose.navigation3.helper"
     compileSdk = 36
 
     defaultConfig {
