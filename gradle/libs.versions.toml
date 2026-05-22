@@ -2,7 +2,7 @@
 agp = "8.12.0"
 androidx-lifecycle = "2.10.0"
 composeMultiplatform = "1.11.0"
-kotlin = "2.2.21"
+kotlin = "2.3.21"
 koinVersion = "4.2.1"
 loggerVersion = "2.0.8"
 comoseNavigationVersion = "2.9.2"
@@ -20,6 +20,7 @@ navigation3 = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", ve
 androidx-lifecycle-nav3 = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "androidx-lifecycle" }
 composeRuntime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
 composeUi = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
+composeFoundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeMultiplatform" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
@@ -33,4 +34,4 @@ serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref 
 navigation3 = ["navigation3", "androidx-lifecycle-nav3"]
 koin = ["koinCore", "koinCompose"]
 lifecycle = ["androidx-lifecycle-viewmodelCompose", "androidx-lifecycle-runtimeCompose"]
-compose = [ "composeUi", "composeRuntime"]
+compose = [ "composeUi", "composeRuntime", "composeFoundation"]
